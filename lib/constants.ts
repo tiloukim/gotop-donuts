@@ -3,6 +3,7 @@ export const STORE_ADDRESS = '7205 S Broadway Ave. #400, Tyler, TX 75703';
 export const STORE_PHONE = '(903) 555-0199';
 export const STORE_EMAIL = 'hello@gotopdonuts.com';
 export const ADMIN_EMAIL = 'tiloukim@gmail.com';
+export const NOTIFICATION_EMAIL = 'topdonuts903@gmail.com';
 
 // Store coordinates (Tyler, TX)
 export const STORE_LAT = 32.2988;

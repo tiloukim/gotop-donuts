@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { ADMIN_EMAIL, STORE_NAME, STATUS_LABELS } from './constants';
+import { NOTIFICATION_EMAIL, STORE_NAME, STATUS_LABELS } from './constants';
 import type { OrderWithItems } from './types';
 
 function getResend() {
@@ -14,8 +14,8 @@ export async function sendOrderNotification(order: OrderWithItems) {
     .join('\n');
 
   await resend.emails.send({
-    from: `${STORE_NAME} <orders@gotopdonuts.com>`,
-    to: ADMIN_EMAIL,
+    from: `${STORE_NAME} <onboarding@resend.dev>`,
+    to: NOTIFICATION_EMAIL,
     subject: `New Order #${order.order_number} — ${order.order_type === 'delivery' ? 'Delivery' : 'Pickup'}`,
     text: `
 New ${order.order_type} order received!
@@ -43,7 +43,7 @@ export async function sendOrderStatusEmail(
   const resend = getResend();
 
   await resend.emails.send({
-    from: `${STORE_NAME} <orders@gotopdonuts.com>`,
+    from: `${STORE_NAME} <onboarding@resend.dev>`,
     to: customerEmail,
     subject: `Order #${order.order_number} — ${STATUS_LABELS[order.status]}`,
     text: `Your order #${order.order_number} status has been updated to: ${STATUS_LABELS[order.status]}.

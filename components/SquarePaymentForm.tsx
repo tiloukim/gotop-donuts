@@ -29,9 +29,13 @@ interface SquarePaymentFormProps {
 
 export default function SquarePaymentForm({ onTokenize, onError, loading, total }: SquarePaymentFormProps) {
   const cardRef = useRef<Card | null>(null);
+  const initRef = useRef(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    if (initRef.current) return;
+    initRef.current = true;
+
     const appId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID!;
     const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID!;
 
@@ -52,17 +56,28 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
       }
     }
 
-    // Load Square SDK
+    // Check if SDK already loaded
+    if (window.Square) {
+      initSquare();
+      return;
+    }
+
+    // Check if script already exists
+    if (document.querySelector('script[src*="squarecdn"]')) {
+      const check = setInterval(() => {
+        if (window.Square) {
+          clearInterval(check);
+          initSquare();
+        }
+      }, 100);
+      return;
+    }
+
     const script = document.createElement('script');
     script.src = 'https://sandbox.web.squarecdn.com/v1/square.js';
     script.onload = initSquare;
     script.onerror = () => onError('Failed to load payment SDK');
     document.head.appendChild(script);
-
-    return () => {
-      cardRef.current?.destroy();
-      script.remove();
-    };
   }, []);
 
   async function handlePay() {
