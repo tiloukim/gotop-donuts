@@ -88,7 +88,7 @@ export default function HomePage() {
         <h2 className="text-3xl font-bold text-dark mb-2">Visit Us</h2>
         <p className="text-gray-600 mb-2">{STORE_ADDRESS}</p>
         <p className="text-gray-500 text-sm">
-          {STORE_HOURS.days} &middot; {STORE_HOURS.open} – {STORE_HOURS.close} &middot; Closed {STORE_HOURS.closed}
+          {STORE_HOURS.days} &middot; {STORE_HOURS.open} – {STORE_HOURS.close}
         </p>
       </section>
     </>

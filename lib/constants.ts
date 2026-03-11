@@ -1,6 +1,6 @@
 export const STORE_NAME = 'GoTop Donuts';
 export const STORE_ADDRESS = '7205 S Broadway Ave. #400, Tyler, TX 75703';
-export const STORE_PHONE = '(903) 555-0199';
+export const STORE_PHONE = '(903) 345-5598';
 export const STORE_EMAIL = 'hello@gotopdonuts.com';
 export const ADMIN_EMAIL = 'tiloukim@gmail.com';
 export const NOTIFICATION_EMAIL = 'topdonuts903@gmail.com';
@@ -28,10 +28,10 @@ export const REDEEM_DISCOUNT = 5;
 
 // Store hours
 export const STORE_HOURS = {
-  open: '6:00 AM',
-  close: '2:00 PM',
-  days: 'Tuesday - Sunday',
-  closed: 'Monday',
+  open: '4:30 AM',
+  close: '12:30 PM',
+  days: 'Monday - Sunday',
+  closed: '',
 };
 
 // Order status labels
