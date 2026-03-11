@@ -121,6 +121,7 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'gotop-cart',
+      skipHydration: true,
     }
   )
 );
