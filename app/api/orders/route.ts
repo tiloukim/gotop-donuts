@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     deliveryDistance,
     redeemPoints,
     tip: tipAmount,
+    scheduledAt,
     sourceId,
     notes,
   } = body as {
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
     deliveryDistance: number | null;
     redeemPoints: number;
     tip: number;
+    scheduledAt: string | null;
     sourceId: string;
     notes: string;
   };
@@ -272,7 +274,10 @@ export async function POST(request: NextRequest) {
         points_earned: Math.floor(actualTotal) * POINTS_PER_DOLLAR,
         points_redeemed: pointsRedeemed,
         notes: notes || null,
-        estimated_ready_at: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
+        scheduled_at: scheduledAt || null,
+        estimated_ready_at: scheduledAt
+          ? scheduledAt
+          : new Date(Date.now() + 20 * 60 * 1000).toISOString(),
       })
       .select()
       .single();

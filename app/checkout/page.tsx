@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/lib/cart-store';
 import { createClient } from '@/lib/supabase/client';
 import SquarePaymentForm from '@/components/SquarePaymentForm';
-import { REDEEM_POINTS, REDEEM_DISCOUNT } from '@/lib/constants';
+import { REDEEM_POINTS, REDEEM_DISCOUNT, STORE_HOURS } from '@/lib/constants';
 import type { OrderType, Profile } from '@/lib/types';
 
 export default function CheckoutPage() {
@@ -24,6 +24,11 @@ export default function CheckoutPage() {
   const [addressError, setAddressError] = useState('');
   const [calculatingFee, setCalculatingFee] = useState(false);
 
+  // Scheduling state
+  const [scheduleMode, setScheduleMode] = useState<'asap' | 'scheduled'>('asap');
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
+
   useEffect(() => {
     if (cart.items.length === 0) {
       router.push('/cart');
@@ -40,6 +45,60 @@ export default function CheckoutPage() {
       if (data) setProfile(data);
     });
   }, []);
+
+  // Generate available dates (today + next 6 days)
+  function getAvailableDates(): string[] {
+    const dates: string[] = [];
+    const now = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() + i);
+      dates.push(d.toISOString().split('T')[0]);
+    }
+    return dates;
+  }
+
+  // Generate 30-min time slots within store hours, filtering past slots for today
+  function getTimeSlots(dateStr: string): { label: string; value: string }[] {
+    const slots: { label: string; value: string }[] = [];
+    // Parse store hours: 4:30 AM = 4.5h, 12:30 PM = 12.5h
+    const openHour = 4, openMin = 30;
+    const closeHour = 12, closeMin = 30;
+
+    const now = new Date();
+    const isToday = dateStr === now.toISOString().split('T')[0];
+    // Require 30 minutes from now for today's slots
+    const minTime = isToday ? new Date(now.getTime() + 30 * 60 * 1000) : null;
+
+    for (let h = openHour; h <= closeHour; h++) {
+      for (const m of [0, 30]) {
+        if (h === openHour && m < openMin) continue;
+        if (h === closeHour && m > closeMin) continue;
+
+        if (minTime) {
+          const slotDate = new Date(dateStr);
+          slotDate.setHours(h, m, 0, 0);
+          if (slotDate <= minTime) continue;
+        }
+
+        const period = h >= 12 ? 'PM' : 'AM';
+        const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
+        const label = `${displayH}:${m.toString().padStart(2, '0')} ${period}`;
+        const value = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        slots.push({ label, value });
+      }
+    }
+    return slots;
+  }
+
+  // Build ISO string from date + time selection
+  function getScheduledAt(): string | null {
+    if (scheduleMode !== 'scheduled' || !scheduleDate || !scheduleTime) return null;
+    const [h, m] = scheduleTime.split(':');
+    const dt = new Date(scheduleDate);
+    dt.setHours(Number(h), Number(m), 0, 0);
+    return dt.toISOString();
+  }
 
   async function calculateDeliveryFee() {
     if (!street || !city || !zip) {
@@ -99,6 +158,7 @@ export default function CheckoutPage() {
           deliveryDistance: cart.deliveryDistance,
           redeemPoints: cart.redeemPoints,
           tip: cart.tip,
+          scheduledAt: getScheduledAt(),
           sourceId,
           notes,
         }),
@@ -200,6 +260,86 @@ export default function CheckoutPage() {
           </div>
         </section>
       )}
+
+      {/* Pickup/Delivery Time */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold mb-3">
+          {cart.orderType === 'pickup' ? 'Pickup' : 'Delivery'} Time
+        </h2>
+        <div className="flex gap-3 mb-3">
+          <button
+            onClick={() => {
+              setScheduleMode('asap');
+              cart.setScheduledAt(null);
+            }}
+            className={`flex-1 py-3 rounded-lg font-medium border-2 transition-colors ${
+              scheduleMode === 'asap'
+                ? 'border-primary bg-primary/5 text-primary'
+                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+            }`}
+          >
+            ASAP (~20 min)
+          </button>
+          <button
+            onClick={() => setScheduleMode('scheduled')}
+            className={`flex-1 py-3 rounded-lg font-medium border-2 transition-colors ${
+              scheduleMode === 'scheduled'
+                ? 'border-primary bg-primary/5 text-primary'
+                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+            }`}
+          >
+            Schedule for Later
+          </button>
+        </div>
+        {scheduleMode === 'scheduled' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Date</label>
+              <select
+                value={scheduleDate}
+                onChange={(e) => {
+                  setScheduleDate(e.target.value);
+                  setScheduleTime('');
+                }}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white"
+              >
+                <option value="">Select date</option>
+                {getAvailableDates().map((d) => (
+                  <option key={d} value={d}>
+                    {new Date(d + 'T12:00:00').toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Time</label>
+              <select
+                value={scheduleTime}
+                onChange={(e) => setScheduleTime(e.target.value)}
+                disabled={!scheduleDate}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white disabled:opacity-50"
+              >
+                <option value="">Select time</option>
+                {scheduleDate &&
+                  getTimeSlots(scheduleDate).map((slot) => (
+                    <option key={slot.value} value={slot.value}>
+                      {slot.label}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            {scheduleDate && getTimeSlots(scheduleDate).length === 0 && (
+              <p className="col-span-2 text-sm text-amber-600">
+                No available time slots for this date. Store hours: {STORE_HOURS.open} – {STORE_HOURS.close}
+              </p>
+            )}
+          </div>
+        )}
+      </section>
 
       {/* Notes */}
       <section className="mb-8">

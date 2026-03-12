@@ -117,7 +117,19 @@ export default function OrderDetailPage() {
         <div className="bg-white border rounded-xl p-6 mb-6">
           <h2 className="font-semibold mb-4">Order Status</h2>
           <OrderTimeline status={order.status as OrderStatus} orderType={order.order_type} />
-          {order.estimated_ready_at && (
+          {order.scheduled_at && (
+            <p className="text-sm text-primary font-medium mt-4 text-center">
+              Scheduled for: {new Date(order.scheduled_at).toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+              })} at {new Date(order.scheduled_at).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </p>
+          )}
+          {!order.scheduled_at && order.estimated_ready_at && (
             <p className="text-sm text-gray-500 mt-4 text-center">
               Estimated ready: {new Date(order.estimated_ready_at).toLocaleTimeString('en-US', {
                 hour: 'numeric',
