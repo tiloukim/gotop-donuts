@@ -12,8 +12,6 @@ interface EnrichedOrder extends OrderWithItems {
   customer_phone: string | null
 }
 
-const ALL_STATUSES: OrderStatus[] = ['received', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'picked_up']
-
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<EnrichedOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -79,8 +77,26 @@ export default function AdminOrdersPage() {
     )
   }
 
-  const activeOrders = orders.filter(o => !['delivered', 'picked_up'].includes(o.status))
+  const activeOrders = orders.filter(o => !['delivered', 'picked_up', 'cancelled', 'refunded'].includes(o.status))
   const completedOrders = orders.filter(o => ['delivered', 'picked_up'].includes(o.status))
+  const cancelledOrders = orders.filter(o => ['cancelled', 'refunded'].includes(o.status))
+
+  function getStatusBadge(status: string) {
+    if (status === 'cancelled' || status === 'refunded') {
+      return 'bg-red-100 text-red-700'
+    }
+    if (status === 'delivered' || status === 'picked_up') {
+      return 'bg-green-100 text-green-700'
+    }
+    return 'bg-amber-100 text-amber-700'
+  }
+
+  function getFlowStatuses(orderType: string): OrderStatus[] {
+    if (orderType === 'pickup') {
+      return ['received', 'preparing', 'ready', 'picked_up']
+    }
+    return ['received', 'preparing', 'ready', 'out_for_delivery', 'delivered']
+  }
 
   return (
     <div className="p-6 lg:p-8">
@@ -123,7 +139,7 @@ export default function AdminOrdersPage() {
                 <div className="text-right">
                   <span className="text-lg font-bold">${Number(order.total).toFixed(2)}</span>
                   <div className="mt-1">
-                    <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-medium">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(order.status)}`}>
                       {STATUS_LABELS[order.status]}
                     </span>
                   </div>
@@ -150,32 +166,76 @@ export default function AdminOrdersPage() {
                 </p>
               )}
 
-              <div className="flex gap-2 flex-wrap">
-                {ALL_STATUSES
-                  .filter(s => {
-                    if (order.order_type === 'pickup') {
-                      return ['received', 'preparing', 'ready', 'picked_up'].includes(s)
-                    }
-                    return s !== 'picked_up'
-                  })
-                  .map(s => (
-                    <button
-                      key={s}
-                      onClick={() => updateStatus(order.id, s)}
-                      disabled={updating === order.id || order.status === s}
-                      className={`text-xs px-3 py-1.5 rounded-lg font-medium ${
-                        order.status === s
-                          ? 'bg-primary text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      } disabled:opacity-50`}
-                    >
-                      {STATUS_LABELS[s]}
-                    </button>
-                  ))}
+              <div className="flex gap-2 flex-wrap items-center">
+                {getFlowStatuses(order.order_type).map(s => (
+                  <button
+                    key={s}
+                    onClick={() => updateStatus(order.id, s)}
+                    disabled={updating === order.id || order.status === s}
+                    className={`text-xs px-3 py-1.5 rounded-lg font-medium ${
+                      order.status === s
+                        ? 'bg-primary text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    } disabled:opacity-50`}
+                  >
+                    {STATUS_LABELS[s]}
+                  </button>
+                ))}
+
+                <span className="mx-1 text-gray-300">|</span>
+
+                <button
+                  onClick={() => {
+                    if (confirm('Cancel this order?')) updateStatus(order.id, 'cancelled')
+                  }}
+                  disabled={updating === order.id}
+                  className="text-xs px-3 py-1.5 rounded-lg font-medium bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm('Mark this order as refunded?')) updateStatus(order.id, 'refunded')
+                  }}
+                  disabled={updating === order.id}
+                  className="text-xs px-3 py-1.5 rounded-lg font-medium bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
+                >
+                  Refund
+                </button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* Cancelled / Refunded */}
+      {cancelledOrders.length > 0 && (
+        <>
+          <h2 className="text-lg font-semibold mb-4">
+            Cancelled / Refunded ({cancelledOrders.length})
+          </h2>
+          <div className="space-y-2 mb-10">
+            {cancelledOrders.slice(0, 20).map(order => (
+              <div key={order.id} className="bg-red-50 rounded-lg p-3 flex justify-between items-center">
+                <div>
+                  <span className="font-medium">#{order.order_number}</span>
+                  <span className="text-sm text-gray-500 ml-2">
+                    {order.customer_name || order.customer_email || 'Guest'}
+                  </span>
+                  <span className="text-xs text-gray-400 ml-2">
+                    {order.order_items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-semibold">${Number(order.total).toFixed(2)}</span>
+                  <span className={`text-xs ml-2 ${order.status === 'refunded' ? 'text-red-600' : 'text-red-500'}`}>
+                    {STATUS_LABELS[order.status]}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Completed Orders */}
