@@ -6,8 +6,8 @@ export const ADMIN_EMAIL = 'tiloukim@gmail.com';
 export const NOTIFICATION_EMAIL = 'topdonuts903@gmail.com';
 
 // Store coordinates (Tyler, TX)
-export const STORE_LAT = 32.2988;
-export const STORE_LNG = -95.3010;
+export const STORE_LAT = 32.2711;
+export const STORE_LNG = -95.3071;
 
 // Delivery fee tiers
 export const DELIVERY_TIERS = [
