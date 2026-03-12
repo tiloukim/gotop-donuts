@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { STATUS_LABELS } from '@/lib/constants'
 import type { OrderWithItems, OrderStatus } from '@/lib/types'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Volume2, VolumeX, Bell, BellOff } from 'lucide-react'
 
 interface EnrichedOrder extends OrderWithItems {
   customer_name: string | null
@@ -18,6 +18,96 @@ export default function AdminOrdersPage() {
   const [updating, setUpdating] = useState<string | null>(null)
   const [refundModal, setRefundModal] = useState<{ orderId: string; orderNumber: number } | null>(null)
   const [refundReason, setRefundReason] = useState('Out of stock items')
+
+  // Sound state
+  const [soundEnabled, setSoundEnabled] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Push state
+  const [pushStatus, setPushStatus] = useState<'loading' | 'unsupported' | 'denied' | 'enabled' | 'available'>('loading')
+
+  // Initialize audio element
+  useEffect(() => {
+    audioRef.current = new Audio('/sounds/new-order.wav')
+    audioRef.current.volume = 0.8
+  }, [])
+
+  // Register service worker + check push status
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setPushStatus('unsupported')
+      return
+    }
+
+    navigator.serviceWorker.register('/sw.js').then(async () => {
+      const permission = Notification.permission
+      if (permission === 'denied') {
+        setPushStatus('denied')
+      } else if (permission === 'granted') {
+        // Check if we have an active subscription
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.getSubscription()
+        setPushStatus(sub ? 'enabled' : 'available')
+      } else {
+        setPushStatus('available')
+      }
+    }).catch(() => {
+      setPushStatus('unsupported')
+    })
+  }, [])
+
+  async function enablePush() {
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        setPushStatus('denied')
+        return
+      }
+
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      })
+
+      const res = await fetch('/api/push-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON() }),
+      })
+
+      if (res.ok) {
+        setPushStatus('enabled')
+      }
+    } catch (err) {
+      console.error('Push subscription failed:', err)
+    }
+  }
+
+  async function disablePush() {
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      if (sub) {
+        await fetch('/api/push-subscription', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        })
+        await sub.unsubscribe()
+      }
+      setPushStatus('available')
+    } catch (err) {
+      console.error('Push unsubscribe failed:', err)
+    }
+  }
+
+  const playSound = useCallback(() => {
+    if (soundEnabled && audioRef.current) {
+      audioRef.current.currentTime = 0
+      audioRef.current.play().catch(() => {})
+    }
+  }, [soundEnabled])
 
   const loadOrders = useCallback(async () => {
     try {
@@ -37,20 +127,28 @@ export default function AdminOrdersPage() {
     loadOrders()
   }, [loadOrders])
 
-  // Realtime subscription for order updates
+  // Realtime: split INSERT (sound + reload) vs UPDATE (reload only)
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
       .channel('admin-orders')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        () => {
+          playSound()
+          loadOrders()
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
         () => loadOrders()
       )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [loadOrders])
+  }, [loadOrders, playSound])
 
   async function updateStatus(orderId: string, status: OrderStatus) {
     setUpdating(orderId)
@@ -130,13 +228,62 @@ export default function AdminOrdersPage() {
     <div className="p-6 lg:p-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Order Management</h1>
-        <button
-          onClick={() => { setLoading(true); loadOrders() }}
-          className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-          title="Refresh"
-        >
-          <RefreshCw size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Push notification toggle */}
+          {pushStatus === 'enabled' ? (
+            <button
+              onClick={disablePush}
+              className="p-2 text-green-600 hover:text-green-700 rounded-lg hover:bg-green-50"
+              title="Push notifications ON — click to disable"
+            >
+              <Bell size={18} />
+            </button>
+          ) : pushStatus === 'available' ? (
+            <button
+              onClick={enablePush}
+              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              title="Enable push notifications"
+            >
+              <BellOff size={18} />
+            </button>
+          ) : pushStatus === 'denied' ? (
+            <button
+              disabled
+              className="p-2 text-red-300 rounded-lg cursor-not-allowed"
+              title="Push notifications blocked — enable in browser settings"
+            >
+              <BellOff size={18} />
+            </button>
+          ) : pushStatus === 'unsupported' ? (
+            <button
+              disabled
+              className="p-2 text-gray-300 rounded-lg cursor-not-allowed"
+              title="Push notifications not supported — use HTTPS or deploy to production"
+            >
+              <BellOff size={18} />
+            </button>
+          ) : null}
+
+          {/* Sound toggle */}
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className={`p-2 rounded-lg hover:bg-gray-100 ${
+              soundEnabled ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-gray-600'
+            }`}
+            title={soundEnabled ? 'Sound ON — click to mute' : 'Sound OFF — click to enable'}
+          >
+            {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
+
+          {/* Refresh */}
+          <button
+            onClick={() => { setLoading(true); loadOrders() }}
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            title="Refresh"
+          >
+            <RefreshCw size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Active Orders */}
