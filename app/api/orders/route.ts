@@ -274,7 +274,30 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ order });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Order creation failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('Order creation failed:', err);
+
+    // Parse Square API errors into friendly messages
+    let message = 'Payment failed. Please try again.';
+    if (err && typeof err === 'object' && 'errors' in err) {
+      const sqErr = err as { errors?: { code?: string; detail?: string }[] };
+      const codes = sqErr.errors?.map(e => e.code) ?? [];
+      if (codes.includes('CVV_FAILURE')) {
+        message = 'Card declined — incorrect CVV. Please check your card details.';
+      } else if (codes.includes('TRANSACTION_LIMIT')) {
+        message = 'Card declined — transaction limit exceeded. Please try a different card.';
+      } else if (codes.includes('CARD_DECLINED') || codes.includes('GENERIC_DECLINE')) {
+        message = 'Card declined. Please try a different card.';
+      } else if (codes.includes('INSUFFICIENT_FUNDS')) {
+        message = 'Card declined — insufficient funds.';
+      } else if (codes.includes('CARD_EXPIRED')) {
+        message = 'Card expired. Please use a different card.';
+      } else if (codes.includes('INVALID_CARD')) {
+        message = 'Invalid card number. Please check and try again.';
+      } else if (codes.includes('ADDRESS_VERIFICATION_FAILURE')) {
+        message = 'Address verification failed. Please check your billing address.';
+      }
+    }
+
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }
