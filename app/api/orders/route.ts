@@ -173,6 +173,30 @@ export async function POST(request: NextRequest) {
       order: {
         locationId,
         lineItems: squareOrderItems,
+        taxes: [{
+          name: 'Sales Tax',
+          percentage: String(TX_SALES_TAX * 100),
+          scope: 'ORDER' as const,
+        }],
+        ...(actualDeliveryFee > 0 && {
+          serviceCharges: [{
+            name: 'Delivery Fee',
+            amountMoney: {
+              amount: BigInt(Math.round(actualDeliveryFee * 100)),
+              currency: 'USD' as const,
+            },
+          }],
+        }),
+        ...(discount > 0 && {
+          discounts: [{
+            name: 'Rewards Discount',
+            amountMoney: {
+              amount: BigInt(Math.round(discount * 100)),
+              currency: 'USD' as const,
+            },
+            scope: 'ORDER' as const,
+          }],
+        }),
         state: 'OPEN',
       },
       idempotencyKey: randomUUID(),
