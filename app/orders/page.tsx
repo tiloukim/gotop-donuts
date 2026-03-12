@@ -69,7 +69,9 @@ export default function OrdersPage() {
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                     order.status === 'delivered' || order.status === 'picked_up'
                       ? 'bg-green-100 text-green-700'
-                      : 'bg-amber-100 text-amber-700'
+                      : order.status === 'cancelled' || order.status === 'refunded'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-amber-100 text-amber-700'
                   }`}>
                     {STATUS_LABELS[order.status]}
                   </span>

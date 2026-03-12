@@ -13,30 +13,34 @@ export async function POST(request: NextRequest) {
       break;
 
     case 'payment.updated': {
-      // Webhook sends snake_case JSON
       const payment = body.data?.object?.payment;
       const paymentId = payment?.id;
       const status = payment?.status;
 
-      if (paymentId && (status === 'CANCELED' || status === 'FAILED')) {
-        await service.from('orders')
+      if (paymentId && (status === 'CANCELED' || status === 'CANCELLED' || status === 'VOIDED' || status === 'FAILED')) {
+        const { data, error } = await service.from('orders')
           .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-          .eq('square_payment_id', paymentId);
+          .eq('square_payment_id', paymentId)
+          .select('id');
+
+        console.log('Payment cancel update:', { paymentId, status, matched: data?.length, error: error?.message });
       }
       break;
     }
 
     case 'refund.created':
     case 'refund.updated': {
-      // Square webhooks use snake_case: payment_id, not paymentId
       const refund = body.data?.object?.refund;
       const refundPaymentId = refund?.payment_id;
       const refundStatus = refund?.status;
 
       if (refundPaymentId && (refundStatus === 'COMPLETED' || refundStatus === 'PENDING')) {
-        await service.from('orders')
+        const { data, error } = await service.from('orders')
           .update({ status: 'refunded', updated_at: new Date().toISOString() })
-          .eq('square_payment_id', refundPaymentId);
+          .eq('square_payment_id', refundPaymentId)
+          .select('id');
+
+        console.log('Refund update:', { refundPaymentId, refundStatus, matched: data?.length, error: error?.message });
       }
       break;
     }

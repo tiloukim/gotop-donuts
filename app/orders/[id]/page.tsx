@@ -66,7 +66,7 @@ export default function OrderDetailPage() {
     );
   }
 
-  const isActive = !['delivered', 'picked_up'].includes(order.status);
+  const isActive = !['delivered', 'picked_up', 'cancelled', 'refunded'].includes(order.status);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -85,7 +85,9 @@ export default function OrderDetailPage() {
           </p>
         </div>
         <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-          !isActive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+          order.status === 'cancelled' || order.status === 'refunded'
+            ? 'bg-red-100 text-red-700'
+            : !isActive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
         }`}>
           {STATUS_LABELS[order.status]}
         </span>
