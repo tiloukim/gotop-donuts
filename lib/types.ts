@@ -48,6 +48,7 @@ export interface Order {
   tax: number;
   delivery_fee: number;
   discount: number;
+  tip: number;
   total: number;
   delivery_address: DeliveryAddress | null;
   delivery_distance_miles: number | null;

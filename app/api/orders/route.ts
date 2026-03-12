@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
     deliveryFee,
     deliveryDistance,
     redeemPoints,
+    tip: tipAmount,
     sourceId,
     notes,
   } = body as {
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
     deliveryFee: number;
     deliveryDistance: number | null;
     redeemPoints: number;
+    tip: number;
     sourceId: string;
     notes: string;
   };
@@ -142,7 +144,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const total = Math.round((subtotal + tax + actualDeliveryFee - discount) * 100) / 100;
+  const tip = tipAmount || 0;
+  const total = Math.round((subtotal + tax + actualDeliveryFee - discount + tip) * 100) / 100;
   const amountCents = Math.round(total * 100);
 
   // Process payment
@@ -169,6 +172,21 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    // Build service charges (delivery fee + tip)
+    const serviceCharges: { name: string; amountMoney: { amount: bigint; currency: 'USD' } }[] = [];
+    if (actualDeliveryFee > 0) {
+      serviceCharges.push({
+        name: 'Delivery Fee',
+        amountMoney: { amount: BigInt(Math.round(actualDeliveryFee * 100)), currency: 'USD' },
+      });
+    }
+    if (tip > 0) {
+      serviceCharges.push({
+        name: 'Tip',
+        amountMoney: { amount: BigInt(Math.round(tip * 100)), currency: 'USD' },
+      });
+    }
+
     const { order: squareOrder } = await square.orders.create({
       order: {
         locationId,
@@ -178,15 +196,7 @@ export async function POST(request: NextRequest) {
           percentage: String(TX_SALES_TAX * 100),
           scope: 'ORDER' as const,
         }],
-        ...(actualDeliveryFee > 0 && {
-          serviceCharges: [{
-            name: 'Delivery Fee',
-            amountMoney: {
-              amount: BigInt(Math.round(actualDeliveryFee * 100)),
-              currency: 'USD' as const,
-            },
-          }],
-        }),
+        ...(serviceCharges.length > 0 && { serviceCharges }),
         ...(discount > 0 && {
           discounts: [{
             name: 'Rewards Discount',
@@ -233,6 +243,7 @@ export async function POST(request: NextRequest) {
         tax,
         delivery_fee: actualDeliveryFee,
         discount,
+        tip,
         total,
         delivery_address: deliveryAddress,
         delivery_distance_miles: deliveryDistance,

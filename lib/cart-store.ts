@@ -13,6 +13,7 @@ interface CartState {
   deliveryDistance: number | null;
   redeemPoints: number;
   discount: number;
+  tip: number;
 
   addItem: (item: Omit<CartItem, 'quantity' | 'special_instructions'>) => void;
   removeItem: (menuItemId: string) => void;
@@ -22,6 +23,7 @@ interface CartState {
   setDeliveryAddress: (address: DeliveryAddress | null) => void;
   setDeliveryFee: (fee: number, distance: number | null) => void;
   setRedeemPoints: (points: number, discount: number) => void;
+  setTip: (tip: number) => void;
   clearCart: () => void;
 
   getSubtotal: () => number;
@@ -40,6 +42,7 @@ export const useCartStore = create<CartState>()(
       deliveryDistance: null,
       redeemPoints: 0,
       discount: 0,
+      tip: 0,
 
       addItem: (item) => {
         set((state) => {
@@ -98,6 +101,8 @@ export const useCartStore = create<CartState>()(
 
       setRedeemPoints: (redeemPoints, discount) => set({ redeemPoints, discount }),
 
+      setTip: (tip) => set({ tip }),
+
       clearCart: () => set({
         items: [],
         orderType: 'pickup',
@@ -106,6 +111,7 @@ export const useCartStore = create<CartState>()(
         deliveryDistance: null,
         redeemPoints: 0,
         discount: 0,
+        tip: 0,
       }),
 
       getSubtotal: () => get().items.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -114,7 +120,7 @@ export const useCartStore = create<CartState>()(
 
       getTotal: () => {
         const state = get();
-        return state.getSubtotal() + state.getTax() + state.deliveryFee - state.discount;
+        return state.getSubtotal() + state.getTax() + state.deliveryFee - state.discount + state.tip;
       },
 
       getItemCount: () => get().items.reduce((sum, item) => sum + item.quantity, 0),

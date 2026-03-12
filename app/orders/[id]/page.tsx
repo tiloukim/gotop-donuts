@@ -168,6 +168,12 @@ export default function OrderDetailPage() {
             <span>-${order.discount.toFixed(2)}</span>
           </div>
         )}
+        {order.tip > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Tip</span>
+            <span>${order.tip.toFixed(2)}</span>
+          </div>
+        )}
         <div className="border-t pt-2 flex justify-between font-bold">
           <span>Total</span>
           <span>${order.total.toFixed(2)}</span>
