@@ -50,23 +50,21 @@ export default function CheckoutPage() {
     setAddressError('');
 
     try {
-      // Use a simple geocoding approach — for production, use Google Geocoding API
       const response = await fetch('/api/delivery/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          // Use approximate coordinates for Tyler, TX area
-          lat: 32.35 + (Math.random() - 0.5) * 0.1,
-          lng: -95.30 + (Math.random() - 0.5) * 0.1,
-        }),
+        body: JSON.stringify({ street, city, state, zip }),
       });
 
       const result = await response.json();
-      if (!result.available) {
+      if (!response.ok) {
+        setAddressError(result.error || 'Could not verify address');
+        cart.setDeliveryFee(0, null);
+      } else if (!result.available) {
         setAddressError(`Address is ${result.distance} miles away. We deliver up to 8 miles.`);
         cart.setDeliveryFee(0, null);
       } else {
-        cart.setDeliveryAddress({ street, city, state, zip, lat: 0, lng: 0 });
+        cart.setDeliveryAddress({ street, city, state, zip, lat: result.lat, lng: result.lng });
         cart.setDeliveryFee(result.fee, result.distance);
       }
     } catch {
