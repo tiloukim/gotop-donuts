@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useCartStore } from '@/lib/cart-store';
+import { ADMIN_EMAIL } from '@/lib/constants';
 import CartDrawer from './CartDrawer';
 import type { User } from '@supabase/supabase-js';
 
@@ -63,9 +64,16 @@ export default function Header() {
               )}
             </button>
             {user ? (
-              <Link href="/account" className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark font-medium">
-                Account
-              </Link>
+              <>
+                <Link href="/account" className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark font-medium">
+                  Account
+                </Link>
+                {user.email === ADMIN_EMAIL && (
+                  <Link href="/admin" className="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-700 font-medium">
+                    Admin
+                  </Link>
+                )}
+              </>
             ) : (
               <Link href="/login" className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark font-medium">
                 Sign In
@@ -109,6 +117,9 @@ export default function Header() {
                 <Link href="/orders" className="block py-2 text-gray-700 font-medium" onClick={() => setMenuOpen(false)}>Orders</Link>
                 <Link href="/rewards" className="block py-2 text-gray-700 font-medium" onClick={() => setMenuOpen(false)}>Rewards</Link>
                 <Link href="/account" className="block py-2 text-gray-700 font-medium" onClick={() => setMenuOpen(false)}>Account</Link>
+                {user.email === ADMIN_EMAIL && (
+                  <Link href="/admin" className="block py-2 text-gray-800 font-bold" onClick={() => setMenuOpen(false)}>Admin Dashboard</Link>
+                )}
               </>
             )}
             {!user && (
