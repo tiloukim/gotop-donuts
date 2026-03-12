@@ -172,18 +172,20 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    // Build service charges (delivery fee + tip)
-    const serviceCharges: { name: string; amountMoney: { amount: bigint; currency: 'USD' } }[] = [];
+    // Build service charges (delivery fee + tip) — not taxable
+    const serviceCharges: { name: string; amountMoney: { amount: bigint; currency: 'USD' }; taxable: boolean }[] = [];
     if (actualDeliveryFee > 0) {
       serviceCharges.push({
         name: 'Delivery Fee',
         amountMoney: { amount: BigInt(Math.round(actualDeliveryFee * 100)), currency: 'USD' },
+        taxable: false,
       });
     }
     if (tip > 0) {
       serviceCharges.push({
         name: 'Tip',
         amountMoney: { amount: BigInt(Math.round(tip * 100)), currency: 'USD' },
+        taxable: false,
       });
     }
 
