@@ -46,13 +46,28 @@ export async function POST(request: NextRequest) {
   // Process refund through Square
   try {
     const square = getSquareClient()
-    const amountCents = Math.round(Number(order.total) * 100)
+
+    // Check payment status and refundable amount
+    const { payment } = await square.payments.get({ paymentId: order.square_payment_id })
+    const refundedAmount = Number(payment?.refundedMoney?.amount ?? 0)
+    const totalAmount = Number(payment?.totalMoney?.amount ?? 0)
+    const refundableAmount = totalAmount - refundedAmount
+
+    if (refundableAmount <= 0) {
+      // Already fully refunded on Square — just update our DB
+      await service
+        .from('orders')
+        .update({ status: 'refunded', updated_at: new Date().toISOString() })
+        .eq('id', order_id)
+
+      return NextResponse.json({ success: true, note: 'Already refunded on Square, status updated' })
+    }
 
     await square.refunds.refundPayment({
       idempotencyKey: randomUUID(),
       paymentId: order.square_payment_id,
       amountMoney: {
-        amount: BigInt(amountCents),
+        amount: BigInt(refundableAmount),
         currency: 'USD',
       },
       reason: reason || 'Out of stock items',
@@ -61,16 +76,30 @@ export async function POST(request: NextRequest) {
     // Update order status
     await service
       .from('orders')
-      .update({
-        status: 'refunded',
-        updated_at: new Date().toISOString(),
-      })
+      .update({ status: 'refunded', updated_at: new Date().toISOString() })
       .eq('id', order_id)
 
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('Square refund failed:', err)
-    const message = err instanceof Error ? err.message : 'Refund failed'
-    return NextResponse.json({ error: message }, { status: 500 })
+
+    let message = 'Refund failed. Please try again.'
+    if (err && typeof err === 'object' && 'errors' in err) {
+      const sqErr = err as { errors?: { code?: string }[] }
+      const codes = sqErr.errors?.map(e => e.code) ?? []
+      if (codes.includes('REFUND_AMOUNT_INVALID')) {
+        // Already refunded — update status anyway
+        await service
+          .from('orders')
+          .update({ status: 'refunded', updated_at: new Date().toISOString() })
+          .eq('id', order_id)
+        return NextResponse.json({ success: true, note: 'Already refunded on Square' })
+      }
+      if (codes.includes('PAYMENT_NOT_REFUNDABLE')) {
+        message = 'This payment cannot be refunded (it may still be processing).'
+      }
+    }
+
+    return NextResponse.json({ error: message }, { status: 400 })
   }
 }
