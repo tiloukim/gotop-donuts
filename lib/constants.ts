@@ -42,4 +42,6 @@ export const STATUS_LABELS: Record<string, string> = {
   out_for_delivery: 'Out for Delivery',
   delivered: 'Delivered',
   picked_up: 'Picked Up',
+  cancelled: 'Cancelled',
+  refunded: 'Refunded',
 };

@@ -1,5 +1,5 @@
 export type OrderType = 'pickup' | 'delivery';
-export type OrderStatus = 'received' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'picked_up';
+export type OrderStatus = 'received' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'picked_up' | 'cancelled' | 'refunded';
 export type MenuCategory = 'breakfast' | 'donuts' | 'drinks';
 export type RewardType = 'earned' | 'redeemed';
 

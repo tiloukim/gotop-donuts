@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
   const square = getSquareClient();
   const itemIds = items.map(i => i.menu_item_id);
 
-  let menuMap = new Map<string, { name: string; price: number }>();
+  let menuMap = new Map<string, { name: string; price: number; variationId: string | null }>();
   try {
     const { objects } = await square.catalog.batchGet({
       objectIds: itemIds,
@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
       for (const obj of objects) {
         if (obj.type === 'ITEM' && obj.itemData) {
           const variation = obj.itemData.variations?.[0];
+          const variationId = variation?.id ?? null;
           const priceMoney = variation?.type === 'ITEM_VARIATION'
             ? variation.itemVariationData?.priceMoney
             : undefined;
@@ -86,6 +87,7 @@ export async function POST(request: NextRequest) {
           menuMap.set(obj.id, {
             name: obj.itemData.name || 'Unknown',
             price: priceCents / 100,
+            variationId,
           });
         }
       }
@@ -97,7 +99,7 @@ export async function POST(request: NextRequest) {
   if (menuMap.size === 0 && items.length > 0) {
     // Fallback: trust cart data if Square fetch failed
     for (const item of items) {
-      menuMap.set(item.menu_item_id, { name: item.name, price: item.price });
+      menuMap.set(item.menu_item_id, { name: item.name, price: item.price, variationId: null });
     }
   }
 
@@ -237,16 +239,27 @@ export async function POST(request: NextRequest) {
 
     // Push to Square POS (non-blocking)
     try {
-      const squareOrderItems = orderItems.map(item => ({
-        name: item.name,
-        quantity: String(item.quantity),
-        basePriceMoney: {
-          amount: BigInt(Math.round(item.unit_price * 100)),
-          currency: 'USD' as const,
-        },
-      }));
+      const squareOrderItems = orderItems.map(item => {
+        const catalogInfo = menuMap.get(item.menu_item_id);
+        if (catalogInfo?.variationId) {
+          // Link to catalog item — POS shows real item name
+          return {
+            catalogObjectId: catalogInfo.variationId,
+            quantity: String(item.quantity),
+          };
+        }
+        // Fallback for items without catalog link
+        return {
+          name: item.name,
+          quantity: String(item.quantity),
+          basePriceMoney: {
+            amount: BigInt(Math.round(item.unit_price * 100)),
+            currency: 'USD' as const,
+          },
+        };
+      });
 
-      await square.orders.create({
+      const { order: squareOrder } = await square.orders.create({
         order: {
           locationId: process.env.SQUARE_LOCATION_ID!,
           lineItems: squareOrderItems,
@@ -254,6 +267,13 @@ export async function POST(request: NextRequest) {
         },
         idempotencyKey: randomUUID(),
       });
+
+      // Save Square order ID for refund tracking
+      if (squareOrder?.id) {
+        await service.from('orders')
+          .update({ square_order_id: squareOrder.id })
+          .eq('id', order.id);
+      }
     } catch (e) {
       console.error('Square order push failed:', e);
     }
