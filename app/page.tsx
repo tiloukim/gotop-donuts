@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { STORE_ADDRESS, STORE_HOURS } from '@/lib/constants';
 
 export default function HomePage() {
   return (
@@ -83,14 +82,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Location */}
-      <section className="max-w-7xl mx-auto px-4 py-16 text-center">
-        <h2 className="text-3xl font-bold text-dark mb-2">Visit Us</h2>
-        <p className="text-gray-600 mb-2">{STORE_ADDRESS}</p>
-        <p className="text-gray-500 text-sm">
-          {STORE_HOURS.days} &middot; {STORE_HOURS.open} – {STORE_HOURS.close}
-        </p>
-      </section>
     </>
   );
 }
