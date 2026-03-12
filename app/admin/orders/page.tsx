@@ -69,6 +69,31 @@ export default function AdminOrdersPage() {
     setUpdating(null)
   }
 
+  async function cancelAndRefund(orderId: string) {
+    const reason = prompt('Reason for cancellation & refund:', 'Out of stock items')
+    if (reason === null) return // user clicked Cancel on prompt
+
+    setUpdating(orderId)
+    try {
+      const res = await fetch('/api/admin/orders/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, reason }),
+      })
+      const result = await res.json()
+      if (res.ok) {
+        setOrders(prev =>
+          prev.map(o => (o.id === orderId ? { ...o, status: 'refunded' as OrderStatus } : o))
+        )
+      } else {
+        alert(result.error || 'Refund failed')
+      }
+    } catch {
+      alert('Refund request failed')
+    }
+    setUpdating(null)
+  }
+
   if (loading) {
     return (
       <div className="p-6 lg:p-8">
@@ -185,22 +210,11 @@ export default function AdminOrdersPage() {
                 <span className="mx-1 text-gray-300">|</span>
 
                 <button
-                  onClick={() => {
-                    if (confirm('Cancel this order?')) updateStatus(order.id, 'cancelled')
-                  }}
+                  onClick={() => cancelAndRefund(order.id)}
                   disabled={updating === order.id}
-                  className="text-xs px-3 py-1.5 rounded-lg font-medium bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
+                  className="text-xs px-3 py-1.5 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    if (confirm('Mark this order as refunded?')) updateStatus(order.id, 'refunded')
-                  }}
-                  disabled={updating === order.id}
-                  className="text-xs px-3 py-1.5 rounded-lg font-medium bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
-                >
-                  Refund
+                  {updating === order.id ? 'Processing...' : 'Cancel & Refund'}
                 </button>
               </div>
             </div>
