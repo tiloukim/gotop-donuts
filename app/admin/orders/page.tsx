@@ -16,6 +16,8 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<EnrichedOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
+  const [refundModal, setRefundModal] = useState<{ orderId: string; orderNumber: number } | null>(null)
+  const [refundReason, setRefundReason] = useState('Out of stock items')
 
   const loadOrders = useCallback(async () => {
     try {
@@ -69,20 +71,21 @@ export default function AdminOrdersPage() {
     setUpdating(null)
   }
 
-  async function cancelAndRefund(orderId: string) {
-    if (!confirm('Cancel this order and refund the customer?')) return
+  async function cancelAndRefund() {
+    if (!refundModal) return
 
-    setUpdating(orderId)
+    setUpdating(refundModal.orderId)
+    setRefundModal(null)
     try {
       const res = await fetch('/api/admin/orders/refund', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId, reason: 'Out of stock items' }),
+        body: JSON.stringify({ order_id: refundModal.orderId, reason: refundReason }),
       })
       const result = await res.json()
       if (res.ok) {
         setOrders(prev =>
-          prev.map(o => (o.id === orderId ? { ...o, status: 'refunded' as OrderStatus } : o))
+          prev.map(o => (o.id === refundModal.orderId ? { ...o, status: 'refunded' as OrderStatus } : o))
         )
       } else {
         alert(result.error || 'Refund failed')
@@ -91,6 +94,7 @@ export default function AdminOrdersPage() {
       alert('Refund request failed')
     }
     setUpdating(null)
+    setRefundReason('Out of stock items')
   }
 
   if (loading) {
@@ -209,7 +213,7 @@ export default function AdminOrdersPage() {
                 <span className="mx-1 text-gray-300">|</span>
 
                 <button
-                  onClick={() => cancelAndRefund(order.id)}
+                  onClick={() => setRefundModal({ orderId: order.id, orderNumber: order.order_number })}
                   disabled={updating === order.id}
                   className="text-xs px-3 py-1.5 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                 >
@@ -276,6 +280,52 @@ export default function AdminOrdersPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {/* Refund Modal */}
+      {refundModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold mb-1">Cancel & Refund Order #{refundModal.orderNumber}</h3>
+            <p className="text-sm text-gray-500 mb-4">The customer will be refunded to their original payment method.</p>
+
+            <label className="block text-sm font-medium mb-1">Reason</label>
+            <select
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg mb-2 text-sm"
+            >
+              <option>Out of stock items</option>
+              <option>Customer requested cancellation</option>
+              <option>Duplicate order</option>
+              <option>Store closed</option>
+              <option>Other</option>
+            </select>
+            {refundReason === 'Other' && (
+              <input
+                type="text"
+                placeholder="Enter reason..."
+                onChange={(e) => setRefundReason(e.target.value || 'Other')}
+                className="w-full px-3 py-2 border rounded-lg mb-2 text-sm"
+                autoFocus
+              />
+            )}
+
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => { setRefundModal(null); setRefundReason('Out of stock items') }}
+                className="flex-1 py-2 rounded-lg border border-gray-300 text-sm font-medium hover:bg-gray-50"
+              >
+                Go Back
+              </button>
+              <button
+                onClick={cancelAndRefund}
+                className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700"
+              >
+                Confirm Refund
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
