@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useCartStore } from '@/lib/cart-store';
@@ -24,12 +25,9 @@ export default function Header() {
   return (
     <>
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🍩</span>
-            <span className="text-xl font-bold text-dark">
-              GoTop <span className="text-primary">Donuts</span>
-            </span>
+        <div className="max-w-7xl mx-auto px-4 h-24 flex items-center justify-between">
+          <Link href="/" className="flex items-center">
+            <Image src="/logo-header.png" alt="GoTop Donuts" width={280} height={96} className="h-20 w-auto" priority />
           </Link>
 
           {/* Desktop nav */}
