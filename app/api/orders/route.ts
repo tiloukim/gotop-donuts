@@ -64,17 +64,43 @@ export async function POST(request: NextRequest) {
 
   const service = createServiceClient();
 
-  // Validate menu items and calculate totals
-  const { data: menuItems } = await service
-    .from('menu_items')
-    .select('*')
-    .in('id', items.map(i => i.menu_item_id));
+  // Validate menu items against Square catalog
+  const square = getSquareClient();
+  const itemIds = items.map(i => i.menu_item_id);
 
-  if (!menuItems?.length) {
-    return NextResponse.json({ error: 'Invalid menu items' }, { status: 400 });
+  let menuMap = new Map<string, { name: string; price: number }>();
+  try {
+    const { objects } = await square.catalog.batchGet({
+      objectIds: itemIds,
+      includeRelatedObjects: false,
+    });
+
+    if (objects) {
+      for (const obj of objects) {
+        if (obj.type === 'ITEM' && obj.itemData) {
+          const variation = obj.itemData.variations?.[0];
+          const priceMoney = variation?.type === 'ITEM_VARIATION'
+            ? variation.itemVariationData?.priceMoney
+            : undefined;
+          const priceCents = priceMoney?.amount ? Number(priceMoney.amount) : 0;
+          menuMap.set(obj.id, {
+            name: obj.itemData.name || 'Unknown',
+            price: priceCents / 100,
+          });
+        }
+      }
+    }
+  } catch {
+    // If Square is unreachable, fall back to cart prices
   }
 
-  const menuMap = new Map(menuItems.map(m => [m.id, m]));
+  if (menuMap.size === 0 && items.length > 0) {
+    // Fallback: trust cart data if Square fetch failed
+    for (const item of items) {
+      menuMap.set(item.menu_item_id, { name: item.name, price: item.price });
+    }
+  }
+
   let subtotal = 0;
   const orderItems = items.map(item => {
     const menu = menuMap.get(item.menu_item_id);
