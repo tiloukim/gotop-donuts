@@ -63,7 +63,7 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
     }
 
     // Check if script already exists
-    if (document.querySelector('script[src*="squarecdn"]')) {
+    if (document.querySelector('script[src*="square.js"]')) {
       const check = setInterval(() => {
         if (window.Square) {
           clearInterval(check);
@@ -74,7 +74,10 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
     }
 
     const script = document.createElement('script');
-    script.src = 'https://sandbox.web.squarecdn.com/v1/square.js';
+    const isProduction = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT === 'production';
+    script.src = isProduction
+      ? 'https://web.squarecdn.com/v1/square.js'
+      : 'https://sandbox.web.squarecdn.com/v1/square.js';
     script.onload = initSquare;
     script.onerror = () => onError('Failed to load payment SDK');
     document.head.appendChild(script);
