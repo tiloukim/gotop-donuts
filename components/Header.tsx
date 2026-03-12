@@ -3,12 +3,14 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useCartStore } from '@/lib/cart-store';
 import CartDrawer from './CartDrawer';
 import type { User } from '@supabase/supabase-js';
 
 export default function Header() {
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
@@ -21,6 +23,8 @@ export default function Header() {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
   }, []);
+
+  if (pathname.startsWith('/admin')) return null;
 
   return (
     <>

@@ -1,7 +1,14 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { STORE_ADDRESS, STORE_PHONE, STORE_HOURS } from '@/lib/constants';
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  if (pathname.startsWith('/admin')) return null;
+
   return (
     <footer className="bg-dark text-white">
       <div className="max-w-7xl mx-auto px-4 py-10 flex flex-col items-center text-center gap-4">
