@@ -70,15 +70,14 @@ export default function AdminOrdersPage() {
   }
 
   async function cancelAndRefund(orderId: string) {
-    const reason = prompt('Reason for cancellation & refund:', 'Out of stock items')
-    if (reason === null) return // user clicked Cancel on prompt
+    if (!confirm('Cancel this order and refund the customer?')) return
 
     setUpdating(orderId)
     try {
       const res = await fetch('/api/admin/orders/refund', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId, reason }),
+        body: JSON.stringify({ order_id: orderId, reason: 'Out of stock items' }),
       })
       const result = await res.json()
       if (res.ok) {
