@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       // Already fully refunded on Square — just update our DB
       await service
         .from('orders')
-        .update({ status: 'refunded', updated_at: new Date().toISOString() })
+        .update({ status: 'refunded', cancel_reason: reason || 'Refunded', updated_at: new Date().toISOString() })
         .eq('id', order_id)
 
       return NextResponse.json({ success: true, note: 'Already refunded on Square, status updated' })
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     // Update order status
     await service
       .from('orders')
-      .update({ status: 'refunded', updated_at: new Date().toISOString() })
+      .update({ status: 'refunded', cancel_reason: reason || 'Refunded', updated_at: new Date().toISOString() })
       .eq('id', order_id)
 
     return NextResponse.json({ success: true })
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         // Already refunded — update status anyway
         await service
           .from('orders')
-          .update({ status: 'refunded', updated_at: new Date().toISOString() })
+          .update({ status: 'refunded', cancel_reason: reason || 'Refunded', updated_at: new Date().toISOString() })
           .eq('id', order_id)
         return NextResponse.json({ success: true, note: 'Already refunded on Square' })
       }

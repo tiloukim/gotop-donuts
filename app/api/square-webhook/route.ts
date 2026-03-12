@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
         if (paymentId && (status === 'CANCELED' || status === 'CANCELLED' || status === 'VOIDED' || status === 'FAILED')) {
           const { data, error } = await service.from('orders')
-            .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+            .update({ status: 'cancelled', cancel_reason: 'Cancelled via Square POS', updated_at: new Date().toISOString() })
             .eq('square_payment_id', paymentId)
             .select('id');
 
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
         if (refundPaymentId && (refundStatus === 'COMPLETED' || refundStatus === 'PENDING')) {
           const { data, error } = await service.from('orders')
-            .update({ status: 'refunded', updated_at: new Date().toISOString() })
+            .update({ status: 'refunded', cancel_reason: refund?.reason || 'Refunded via Square POS', updated_at: new Date().toISOString() })
             .eq('square_payment_id', refundPaymentId)
             .select('id');
 

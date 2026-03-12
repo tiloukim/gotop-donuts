@@ -56,6 +56,7 @@ export interface Order {
   points_earned: number;
   points_redeemed: number;
   notes: string | null;
+  cancel_reason: string | null;
   estimated_ready_at: string | null;
   created_at: string;
   updated_at: string;

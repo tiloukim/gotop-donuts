@@ -93,6 +93,25 @@ export default function OrderDetailPage() {
         </span>
       </div>
 
+      {/* Cancelled / Refunded Notice */}
+      {(order.status === 'cancelled' || order.status === 'refunded') && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-5 mb-6">
+          <h2 className="font-semibold text-red-700 mb-1">
+            {order.status === 'refunded' ? 'Order Refunded' : 'Order Cancelled'}
+          </h2>
+          <p className="text-sm text-red-600">
+            {order.status === 'refunded'
+              ? 'A refund has been issued to your original payment method. It may take 3-5 business days to appear.'
+              : 'This order has been cancelled.'}
+          </p>
+          {order.cancel_reason && (
+            <p className="text-sm text-gray-600 mt-2">
+              <span className="font-medium">Reason:</span> {order.cancel_reason}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Timeline */}
       {isActive && (
         <div className="bg-white border rounded-xl p-6 mb-6">
