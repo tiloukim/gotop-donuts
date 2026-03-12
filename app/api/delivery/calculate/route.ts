@@ -42,6 +42,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Address or coordinates required' }, { status: 400 });
   }
 
-  const result = calculateDeliveryFee(lat, lng);
-  return NextResponse.json({ ...result, lat, lng });
+  try {
+    const result = await calculateDeliveryFee(lat, lng);
+    return NextResponse.json({ ...result, lat, lng });
+  } catch {
+    return NextResponse.json({ error: 'Could not calculate driving distance. Please try again.' }, { status: 500 });
+  }
 }
