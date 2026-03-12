@@ -189,43 +189,56 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const { order: squareOrder } = await square.orders.create({
-      order: {
-        locationId,
-        lineItems: squareOrderItems,
-        taxes: [{
-          name: 'Sales Tax',
-          percentage: String(TX_SALES_TAX * 100),
-          scope: 'ORDER' as const,
-        }],
-        ...(serviceCharges.length > 0 && { serviceCharges }),
-        ...(discount > 0 && {
-          discounts: [{
-            name: 'Rewards Discount',
-            amountMoney: {
-              amount: BigInt(Math.round(discount * 100)),
-              currency: 'USD' as const,
-            },
+    let squareOrderId: string | undefined;
+    let squareOrderTotal: bigint | undefined;
+
+    try {
+      const { order: squareOrder } = await square.orders.create({
+        order: {
+          locationId,
+          lineItems: squareOrderItems,
+          taxes: [{
+            name: 'Sales Tax',
+            percentage: String(TX_SALES_TAX * 100),
             scope: 'ORDER' as const,
           }],
-        }),
-        state: 'OPEN',
-      },
-      idempotencyKey: randomUUID(),
-    });
+          ...(serviceCharges.length > 0 && { serviceCharges }),
+          ...(discount > 0 && {
+            discounts: [{
+              name: 'Rewards Discount',
+              amountMoney: {
+                amount: BigInt(Math.round(discount * 100)),
+                currency: 'USD' as const,
+              },
+              scope: 'ORDER' as const,
+            }],
+          }),
+        },
+        idempotencyKey: randomUUID(),
+      });
 
-    const squareOrderId = squareOrder?.id;
+      squareOrderId = squareOrder?.id;
+      squareOrderTotal = squareOrder?.totalMoney?.amount
+        ? BigInt(squareOrder.totalMoney.amount)
+        : undefined;
+    } catch (orderErr) {
+      console.error('Square order creation failed:', orderErr);
+      // Fall back to payment without order (items won't show on POS but payment works)
+    }
+
+    // Use Square's computed total if available (avoids rounding mismatch), else our calculated total
+    const paymentAmount = squareOrderTotal ?? BigInt(amountCents);
 
     // 2. Create payment linked to the Square order
     const paymentResult = await square.payments.create({
       sourceId,
       idempotencyKey: randomUUID(),
       amountMoney: {
-        amount: BigInt(amountCents),
+        amount: paymentAmount,
         currency: 'USD',
       },
       locationId,
-      orderId: squareOrderId,
+      ...(squareOrderId && { orderId: squareOrderId }),
     });
 
     if (paymentResult.payment?.status !== 'COMPLETED') {
@@ -233,6 +246,11 @@ export async function POST(request: NextRequest) {
     }
 
     const squarePaymentId = paymentResult.payment.id;
+
+    // Use Square's total if available (matches actual charge)
+    const actualTotal = squareOrderTotal
+      ? Number(squareOrderTotal) / 100
+      : total;
 
     // 3. Create DB order
     const { data: order, error: orderError } = await service
@@ -246,12 +264,12 @@ export async function POST(request: NextRequest) {
         delivery_fee: actualDeliveryFee,
         discount,
         tip,
-        total,
+        total: actualTotal,
         delivery_address: deliveryAddress,
         delivery_distance_miles: deliveryDistance,
         square_payment_id: squarePaymentId,
         square_order_id: squareOrderId || null,
-        points_earned: Math.floor(total) * POINTS_PER_DOLLAR,
+        points_earned: Math.floor(actualTotal) * POINTS_PER_DOLLAR,
         points_redeemed: pointsRedeemed,
         notes: notes || null,
         estimated_ready_at: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
@@ -269,7 +287,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Update reward points
-    const pointsEarned = Math.floor(total) * POINTS_PER_DOLLAR;
+    const pointsEarned = Math.floor(actualTotal) * POINTS_PER_DOLLAR;
     const pointsChange = pointsEarned - pointsRedeemed;
 
     await service.rpc('update_reward_points', {
@@ -311,13 +329,24 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ order });
   } catch (err: unknown) {
-    console.error('Order creation failed:', err);
+    console.error('Order/payment failed:', JSON.stringify(err, Object.getOwnPropertyNames(err as object), 2));
 
     // Parse Square API errors into friendly messages
     let message = 'Payment failed. Please try again.';
-    if (err && typeof err === 'object' && 'errors' in err) {
-      const sqErr = err as { errors?: { code?: string; detail?: string }[] };
-      const codes = sqErr.errors?.map(e => e.code) ?? [];
+    // Square SDK v44 wraps errors — check both top-level and nested
+    const sqErrors: { code?: string; detail?: string }[] = [];
+    if (err && typeof err === 'object') {
+      if ('errors' in err) {
+        const e = err as { errors?: { code?: string; detail?: string }[] };
+        sqErrors.push(...(e.errors || []));
+      }
+      if ('body' in err) {
+        const e = err as { body?: { errors?: { code?: string; detail?: string }[] } };
+        sqErrors.push(...(e.body?.errors || []));
+      }
+    }
+    if (sqErrors.length > 0) {
+      const codes = sqErrors.map(e => e.code) ?? [];
       if (codes.includes('CVV_FAILURE')) {
         message = 'Card declined — incorrect CVV. Please check your card details.';
       } else if (codes.includes('TRANSACTION_LIMIT')) {
