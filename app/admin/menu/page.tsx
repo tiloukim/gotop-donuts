@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Plus, Pencil, Trash2, Upload, X, Eye, EyeOff, Loader2, FileSpreadsheet, Check, AlertCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, X, Eye, EyeOff, Loader2, FileSpreadsheet, Check, AlertCircle, Settings } from 'lucide-react'
+import Link from 'next/link'
 import type { MenuCategory, AdminMenuItem } from '@/lib/types'
 
 const CATEGORIES: { value: 'all' | MenuCategory; label: string }[] = [
@@ -385,7 +386,18 @@ export default function AdminMenuPage() {
 
       {/* Items list */}
       {filteredItems.length === 0 ? (
-        <p className="text-gray-400 text-sm text-center py-12">No items found</p>
+        <div className="text-center py-12">
+          <p className="text-gray-400 text-sm">No items found</p>
+          {items.length === 0 && (
+            <Link
+              href="/admin/menu/debug"
+              className="inline-flex items-center gap-1.5 mt-3 text-sm text-primary hover:text-primary/80 font-medium"
+            >
+              <Settings size={14} />
+              Check Square connection
+            </Link>
+          )}
+        </div>
       ) : (
         <div className="space-y-2">
           {filteredItems.map(item => (
