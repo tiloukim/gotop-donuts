@@ -4,40 +4,39 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   const body = await request.json();
 
-  console.log('Square webhook received:', body.type);
+  console.log('Square webhook received:', body.type, JSON.stringify(body.data?.object));
 
   const service = createServiceClient();
 
   switch (body.type) {
     case 'payment.completed':
-      // Payment completed — order already created in POST /api/orders
       break;
 
     case 'payment.updated': {
-      // Handle refunds — Square updates payment status
+      // Webhook sends snake_case JSON
       const payment = body.data?.object?.payment;
-      if (!payment?.id) break;
+      const paymentId = payment?.id;
+      const status = payment?.status;
 
-      const status = payment.status;
-      if (status === 'CANCELED' || status === 'FAILED') {
-        // Find order by square_payment_id and mark as cancelled
+      if (paymentId && (status === 'CANCELED' || status === 'FAILED')) {
         await service.from('orders')
           .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-          .eq('square_payment_id', payment.id);
+          .eq('square_payment_id', paymentId);
       }
       break;
     }
 
     case 'refund.created':
     case 'refund.updated': {
+      // Square webhooks use snake_case: payment_id, not paymentId
       const refund = body.data?.object?.refund;
-      if (!refund?.paymentId) break;
+      const refundPaymentId = refund?.payment_id;
+      const refundStatus = refund?.status;
 
-      if (refund.status === 'COMPLETED' || refund.status === 'PENDING') {
-        // Mark order as refunded
+      if (refundPaymentId && (refundStatus === 'COMPLETED' || refundStatus === 'PENDING')) {
         await service.from('orders')
           .update({ status: 'refunded', updated_at: new Date().toISOString() })
-          .eq('square_payment_id', refund.paymentId);
+          .eq('square_payment_id', refundPaymentId);
       }
       break;
     }
