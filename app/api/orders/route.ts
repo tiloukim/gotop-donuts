@@ -148,6 +148,39 @@ export async function POST(request: NextRequest) {
   // Process payment
   try {
     const square = getSquareClient();
+    const locationId = process.env.SQUARE_LOCATION_ID!;
+
+    // 1. Create Square order FIRST so payment links to it (shows item names on POS)
+    const squareOrderItems = orderItems.map(item => {
+      const catalogInfo = menuMap.get(item.menu_item_id);
+      if (catalogInfo?.variationId) {
+        return {
+          catalogObjectId: catalogInfo.variationId,
+          quantity: String(item.quantity),
+        };
+      }
+      return {
+        name: item.name,
+        quantity: String(item.quantity),
+        basePriceMoney: {
+          amount: BigInt(Math.round(item.unit_price * 100)),
+          currency: 'USD' as const,
+        },
+      };
+    });
+
+    const { order: squareOrder } = await square.orders.create({
+      order: {
+        locationId,
+        lineItems: squareOrderItems,
+        state: 'OPEN',
+      },
+      idempotencyKey: randomUUID(),
+    });
+
+    const squareOrderId = squareOrder?.id;
+
+    // 2. Create payment linked to the Square order
     const paymentResult = await square.payments.create({
       sourceId,
       idempotencyKey: randomUUID(),
@@ -155,7 +188,8 @@ export async function POST(request: NextRequest) {
         amount: BigInt(amountCents),
         currency: 'USD',
       },
-      locationId: process.env.SQUARE_LOCATION_ID!,
+      locationId,
+      orderId: squareOrderId,
     });
 
     if (paymentResult.payment?.status !== 'COMPLETED') {
@@ -164,7 +198,7 @@ export async function POST(request: NextRequest) {
 
     const squarePaymentId = paymentResult.payment.id;
 
-    // Create order
+    // 3. Create DB order
     const { data: order, error: orderError } = await service
       .from('orders')
       .insert({
@@ -179,6 +213,7 @@ export async function POST(request: NextRequest) {
         delivery_address: deliveryAddress,
         delivery_distance_miles: deliveryDistance,
         square_payment_id: squarePaymentId,
+        square_order_id: squareOrderId || null,
         points_earned: Math.floor(total) * POINTS_PER_DOLLAR,
         points_redeemed: pointsRedeemed,
         notes: notes || null,
@@ -236,47 +271,6 @@ export async function POST(request: NextRequest) {
     // Send notifications (non-blocking)
     const orderWithItems = { ...order, order_items: orderItems.map((item, i) => ({ ...item, id: `temp-${i}`, order_id: order.id })) };
     sendOrderNotification(orderWithItems).catch(console.error);
-
-    // Push to Square POS (non-blocking)
-    try {
-      const squareOrderItems = orderItems.map(item => {
-        const catalogInfo = menuMap.get(item.menu_item_id);
-        if (catalogInfo?.variationId) {
-          // Link to catalog item — POS shows real item name
-          return {
-            catalogObjectId: catalogInfo.variationId,
-            quantity: String(item.quantity),
-          };
-        }
-        // Fallback for items without catalog link
-        return {
-          name: item.name,
-          quantity: String(item.quantity),
-          basePriceMoney: {
-            amount: BigInt(Math.round(item.unit_price * 100)),
-            currency: 'USD' as const,
-          },
-        };
-      });
-
-      const { order: squareOrder } = await square.orders.create({
-        order: {
-          locationId: process.env.SQUARE_LOCATION_ID!,
-          lineItems: squareOrderItems,
-          state: 'OPEN',
-        },
-        idempotencyKey: randomUUID(),
-      });
-
-      // Save Square order ID for refund tracking
-      if (squareOrder?.id) {
-        await service.from('orders')
-          .update({ square_order_id: squareOrder.id })
-          .eq('id', order.id);
-      }
-    } catch (e) {
-      console.error('Square order push failed:', e);
-    }
 
     return NextResponse.json({ order });
   } catch (err: unknown) {
