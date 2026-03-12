@@ -96,6 +96,11 @@ export interface RewardTransaction {
   created_at: string;
 }
 
+export interface AdminMenuItem extends MenuItem {
+  variationId: string;
+  is_taxable: boolean;
+}
+
 export interface CartItem {
   menu_item_id: string;
   name: string;

@@ -1,4 +1,5 @@
 import { getSquareClient } from '@/lib/square'
+import { createServiceClient } from '@/lib/supabase/service'
 import { NextResponse } from 'next/server'
 
 // Map Square category names to our app categories
@@ -79,6 +80,16 @@ export async function GET() {
       }
     }
 
+    // Fetch image overrides from Supabase
+    const service = createServiceClient()
+    const { data: overrides } = await service
+      .from('menu_image_overrides')
+      .select('square_item_id, image_url')
+
+    const overrideMap = new Map(
+      (overrides ?? []).map(o => [o.square_item_id, o.image_url])
+    )
+
     // Transform Square items to our MenuItem format
     const itemsOnly = catalogItems.filter((item): item is Extract<typeof item, { type: 'ITEM' }> =>
       item.type === 'ITEM' && !!item.itemData
@@ -96,9 +107,10 @@ export async function GET() {
         const categoryName = categoryId ? categoryMap.get(categoryId) : null
         const category = categoryName ? mapCategory(categoryName) : 'donuts'
 
-        // Get image URL
+        // Get image URL (override takes priority)
         const imageId = data.imageIds?.[0]
-        const imageUrl = imageId ? imageMap.get(imageId) : null
+        const squareImageUrl = imageId ? imageMap.get(imageId) : null
+        const imageUrl = overrideMap.get(item.id) || squareImageUrl
 
         // Get price (Square stores in cents)
         const priceCents = priceMoney?.amount ? Number(priceMoney.amount) : 0
