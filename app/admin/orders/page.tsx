@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { STATUS_LABELS } from '@/lib/constants'
 import type { OrderWithItems, OrderStatus } from '@/lib/types'
-import { RefreshCw, Volume2, VolumeX, Bell, BellOff } from 'lucide-react'
+import { RefreshCw, Volume2, VolumeX, Bell, BellOff, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface EnrichedOrder extends OrderWithItems {
   customer_name: string | null
@@ -18,6 +18,8 @@ export default function AdminOrdersPage() {
   const [updating, setUpdating] = useState<string | null>(null)
   const [refundModal, setRefundModal] = useState<{ orderId: string; orderNumber: number } | null>(null)
   const [refundReason, setRefundReason] = useState('Out of stock items')
+  const [showCancelled, setShowCancelled] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(false)
 
   // Sound state
   const [soundEnabled, setSoundEnabled] = useState(false)
@@ -374,61 +376,75 @@ export default function AdminOrdersPage() {
 
       {/* Cancelled / Refunded */}
       {cancelledOrders.length > 0 && (
-        <>
-          <h2 className="text-lg font-semibold mb-4">
+        <div className="mb-10">
+          <button
+            onClick={() => setShowCancelled(!showCancelled)}
+            className="flex items-center gap-2 text-lg font-semibold mb-4 hover:text-gray-600 transition-colors"
+          >
+            {showCancelled ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
             Cancelled / Refunded ({cancelledOrders.length})
-          </h2>
-          <div className="space-y-2 mb-10">
-            {cancelledOrders.slice(0, 20).map(order => (
-              <div key={order.id} className="bg-red-50 rounded-lg p-3 flex justify-between items-center">
-                <div>
-                  <span className="font-medium">#{order.order_number}</span>
-                  <span className="text-sm text-gray-500 ml-2">
-                    {order.customer_name || order.customer_email || 'Guest'}
-                  </span>
-                  <span className="text-xs text-gray-400 ml-2">
-                    {order.order_items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-                  </span>
+          </button>
+          {showCancelled && (
+            <div className="space-y-2">
+              {cancelledOrders.map(order => (
+                <div key={order.id} className="bg-red-50 rounded-lg p-3 flex justify-between items-center">
+                  <div>
+                    <span className="font-medium">#{order.order_number}</span>
+                    <span className="text-sm text-gray-500 ml-2">
+                      {order.customer_name || order.customer_email || 'Guest'}
+                    </span>
+                    <span className="text-xs text-gray-400 ml-2">
+                      {order.order_items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-semibold">${Number(order.total).toFixed(2)}</span>
+                    <span className={`text-xs ml-2 ${order.status === 'refunded' ? 'text-red-600' : 'text-red-500'}`}>
+                      {STATUS_LABELS[order.status]}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-sm font-semibold">${Number(order.total).toFixed(2)}</span>
-                  <span className={`text-xs ml-2 ${order.status === 'refunded' ? 'text-red-600' : 'text-red-500'}`}>
-                    {STATUS_LABELS[order.status]}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Completed Orders */}
-      <h2 className="text-lg font-semibold mb-4">
-        Completed ({completedOrders.length})
-      </h2>
-      {completedOrders.length === 0 ? (
-        <p className="text-gray-400 text-sm">No completed orders</p>
-      ) : (
-        <div className="space-y-2">
-          {completedOrders.slice(0, 20).map(order => (
-            <div key={order.id} className="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
-              <div>
-                <span className="font-medium">#{order.order_number}</span>
-                <span className="text-sm text-gray-500 ml-2">
-                  {order.customer_name || order.customer_email || 'Guest'}
-                </span>
-                <span className="text-xs text-gray-400 ml-2">
-                  {order.order_items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-sm font-semibold">${Number(order.total).toFixed(2)}</span>
-                <span className="text-xs text-green-600 ml-2">{STATUS_LABELS[order.status]}</span>
-              </div>
+      <div>
+        <button
+          onClick={() => setShowCompleted(!showCompleted)}
+          className="flex items-center gap-2 text-lg font-semibold mb-4 hover:text-gray-600 transition-colors"
+        >
+          {showCompleted ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+          Completed ({completedOrders.length})
+        </button>
+        {showCompleted && (
+          completedOrders.length === 0 ? (
+            <p className="text-gray-400 text-sm">No completed orders</p>
+          ) : (
+            <div className="space-y-2">
+              {completedOrders.map(order => (
+                <div key={order.id} className="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
+                  <div>
+                    <span className="font-medium">#{order.order_number}</span>
+                    <span className="text-sm text-gray-500 ml-2">
+                      {order.customer_name || order.customer_email || 'Guest'}
+                    </span>
+                    <span className="text-xs text-gray-400 ml-2">
+                      {order.order_items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-semibold">${Number(order.total).toFixed(2)}</span>
+                    <span className="text-xs text-green-600 ml-2">{STATUS_LABELS[order.status]}</span>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )
+        )}
+      </div>
       {/* Refund Modal */}
       {refundModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
