@@ -1,7 +1,7 @@
 {
   "name": "GoTop Donuts",
   "short_name": "GoTop",
-  "start_url": "/admin/orders",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#dc2626",
