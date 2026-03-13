@@ -20,6 +20,7 @@ export default function AdminOrdersPage() {
   const [refundReason, setRefundReason] = useState('Out of stock items')
   const [showCancelled, setShowCancelled] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
 
   // Sound state
   const [soundEnabled, setSoundEnabled] = useState(false)
@@ -387,22 +388,53 @@ export default function AdminOrdersPage() {
           {showCancelled && (
             <div className="space-y-2">
               {cancelledOrders.map(order => (
-                <div key={order.id} className="bg-red-50 rounded-lg p-3 flex justify-between items-center">
-                  <div>
-                    <span className="font-medium">#{order.order_number}</span>
-                    <span className="text-sm text-gray-500 ml-2">
-                      {order.customer_name || order.customer_email || 'Guest'}
-                    </span>
-                    <span className="text-xs text-gray-400 ml-2">
-                      {order.order_items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-semibold">${Number(order.total).toFixed(2)}</span>
-                    <span className={`text-xs ml-2 ${order.status === 'refunded' ? 'text-red-600' : 'text-red-500'}`}>
-                      {STATUS_LABELS[order.status]}
-                    </span>
-                  </div>
+                <div key={order.id} className="bg-red-50 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
+                    className="w-full p-3 flex justify-between items-center hover:bg-red-100/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      {expandedOrder === order.id ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}
+                      <span className="font-medium">#{order.order_number}</span>
+                      <span className="text-sm text-gray-500">
+                        {order.customer_name || order.customer_email || 'Guest'}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-semibold">${Number(order.total).toFixed(2)}</span>
+                      <span className={`text-xs ml-2 ${order.status === 'refunded' ? 'text-red-600' : 'text-red-500'}`}>
+                        {STATUS_LABELS[order.status]}
+                      </span>
+                    </div>
+                  </button>
+                  {expandedOrder === order.id && (
+                    <div className="px-4 pb-4 pt-1 border-t border-red-100">
+                      <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                        <div><span className="text-gray-500">Customer:</span> {order.customer_name || 'Guest'}</div>
+                        <div><span className="text-gray-500">Email:</span> {order.customer_email || '—'}</div>
+                        <div><span className="text-gray-500">Phone:</span> {order.customer_phone || '—'}</div>
+                        <div><span className="text-gray-500">Type:</span> {order.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'}</div>
+                        <div><span className="text-gray-500">Date:</span> {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+                        {order.cancel_reason && <div><span className="text-gray-500">Reason:</span> {order.cancel_reason}</div>}
+                      </div>
+                      {order.delivery_address && (
+                        <p className="text-sm text-gray-600 mb-2">📍 {order.delivery_address.street}, {order.delivery_address.city}</p>
+                      )}
+                      <div className="bg-white/60 rounded-lg p-3">
+                        {order.order_items.map(item => (
+                          <div key={item.id} className="text-sm flex justify-between">
+                            <span><span className="font-medium">{item.quantity}x</span> {item.name}</span>
+                            <span className="text-gray-500">${Number(item.total_price).toFixed(2)}</span>
+                          </div>
+                        ))}
+                        <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-semibold text-sm">
+                          <span>Total</span>
+                          <span>${Number(order.total).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      {order.notes && <p className="text-sm text-amber-600 mt-2 font-medium">Note: {order.notes}</p>}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -425,20 +457,54 @@ export default function AdminOrdersPage() {
           ) : (
             <div className="space-y-2">
               {completedOrders.map(order => (
-                <div key={order.id} className="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
-                  <div>
-                    <span className="font-medium">#{order.order_number}</span>
-                    <span className="text-sm text-gray-500 ml-2">
-                      {order.customer_name || order.customer_email || 'Guest'}
-                    </span>
-                    <span className="text-xs text-gray-400 ml-2">
-                      {order.order_items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-semibold">${Number(order.total).toFixed(2)}</span>
-                    <span className="text-xs text-green-600 ml-2">{STATUS_LABELS[order.status]}</span>
-                  </div>
+                <div key={order.id} className="bg-gray-50 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
+                    className="w-full p-3 flex justify-between items-center hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      {expandedOrder === order.id ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}
+                      <span className="font-medium">#{order.order_number}</span>
+                      <span className="text-sm text-gray-500">
+                        {order.customer_name || order.customer_email || 'Guest'}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-semibold">${Number(order.total).toFixed(2)}</span>
+                      <span className="text-xs text-green-600 ml-2">{STATUS_LABELS[order.status]}</span>
+                    </div>
+                  </button>
+                  {expandedOrder === order.id && (
+                    <div className="px-4 pb-4 pt-1 border-t border-gray-200">
+                      <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                        <div><span className="text-gray-500">Customer:</span> {order.customer_name || 'Guest'}</div>
+                        <div><span className="text-gray-500">Email:</span> {order.customer_email || '—'}</div>
+                        <div><span className="text-gray-500">Phone:</span> {order.customer_phone || '—'}</div>
+                        <div><span className="text-gray-500">Type:</span> {order.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'}</div>
+                        <div><span className="text-gray-500">Date:</span> {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+                        {order.estimated_ready_at && <div><span className="text-gray-500">Scheduled:</span> {new Date(order.estimated_ready_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>}
+                      </div>
+                      {order.delivery_address && (
+                        <p className="text-sm text-gray-600 mb-2">📍 {order.delivery_address.street}, {order.delivery_address.city}</p>
+                      )}
+                      <div className="bg-white rounded-lg p-3">
+                        {order.order_items.map(item => (
+                          <div key={item.id} className="text-sm flex justify-between">
+                            <div>
+                              <span className="font-medium">{item.quantity}x</span> {item.name}
+                              {item.special_instructions && <span className="text-gray-400 text-xs ml-1">— {item.special_instructions}</span>}
+                            </div>
+                            <span className="text-gray-500">${Number(item.total_price).toFixed(2)}</span>
+                          </div>
+                        ))}
+                        <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-semibold text-sm">
+                          <span>Total</span>
+                          <span>${Number(order.total).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      {order.notes && <p className="text-sm text-amber-600 mt-2 font-medium">Note: {order.notes}</p>}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
