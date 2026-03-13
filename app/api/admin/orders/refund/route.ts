@@ -40,7 +40,13 @@ export async function POST(request: NextRequest) {
   }
 
   if (!order.square_payment_id) {
-    return NextResponse.json({ error: 'No payment ID found for this order' }, { status: 400 })
+    // No payment to refund — just cancel the order
+    await service
+      .from('orders')
+      .update({ status: 'cancelled', cancel_reason: reason || 'Cancelled', updated_at: new Date().toISOString() })
+      .eq('id', order_id)
+
+    return NextResponse.json({ success: true, note: 'No payment found, order cancelled' })
   }
 
   // Process refund through Square

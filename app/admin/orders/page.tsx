@@ -183,7 +183,7 @@ export default function AdminOrdersPage() {
       const result = await res.json()
       if (res.ok) {
         setOrders(prev =>
-          prev.map(o => (o.id === refundModal.orderId ? { ...o, status: 'refunded' as OrderStatus } : o))
+          prev.map(o => (o.id === refundModal.orderId ? { ...o, status: (result.note?.includes('cancelled') ? 'cancelled' : 'refunded') as OrderStatus } : o))
         )
       } else {
         alert(result.error || 'Refund failed')
