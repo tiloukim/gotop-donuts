@@ -85,22 +85,22 @@ export async function GET(request: NextRequest) {
 
     // Fetch image overrides and variants from Supabase
     const service = createServiceClient()
-    let overrideMap = new Map<string, { image_url: string | null; variants: unknown }>()
-    try {
-      const { data: overrides } = await service
-        .from('menu_image_overrides')
-        .select('square_item_id, image_url, variants')
+    const { data: overrides, error: overrideErr } = await service
+      .from('menu_image_overrides')
+      .select('square_item_id, image_url, variants')
 
-      overrideMap = new Map(
-        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants }])
-      )
-    } catch {
-      const { data: overrides } = await service
+    let overrideMap = new Map<string, { image_url: string | null; variants: unknown }>()
+    if (overrideErr) {
+      const { data: fallback } = await service
         .from('menu_image_overrides')
         .select('square_item_id, image_url')
 
       overrideMap = new Map(
-        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null }])
+        (fallback ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null }])
+      )
+    } else {
+      overrideMap = new Map(
+        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants }])
       )
     }
 
@@ -201,14 +201,18 @@ export async function POST(request: NextRequest) {
     // Save image override and/or variants if provided
     if ((image_url || variants) && catalogObject?.id) {
       const service = createServiceClient()
-      await service
+      const { error: upsertErr } = await service
         .from('menu_image_overrides')
         .upsert({
           square_item_id: catalogObject.id,
           ...(image_url && { image_url }),
           ...(variants && { variants }),
           updated_at: new Date().toISOString(),
-        })
+        }, { onConflict: 'square_item_id' })
+
+      if (upsertErr) {
+        console.error('Failed to upsert menu overrides:', upsertErr)
+      }
     }
 
     const variationId = catalogObject?.type === 'ITEM'

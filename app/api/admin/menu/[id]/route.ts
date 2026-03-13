@@ -76,23 +76,19 @@ export async function PATCH(
     // Update image override and/or variants if provided
     if (image_url !== undefined || variants !== undefined) {
       const service = createServiceClient()
-      if (image_url || variants !== undefined) {
-        const upsertData: Record<string, unknown> = {
-          square_item_id: id,
-          updated_at: new Date().toISOString(),
-        }
-        if (image_url !== undefined) upsertData.image_url = image_url || null
-        if (variants !== undefined) upsertData.variants = variants
-        await service
-          .from('menu_image_overrides')
-          .upsert(upsertData)
+      const upsertData: Record<string, unknown> = {
+        square_item_id: id,
+        updated_at: new Date().toISOString(),
       }
-      if (image_url === null && variants === undefined) {
-        // Remove override only if clearing image and not setting variants
-        await service
-          .from('menu_image_overrides')
-          .delete()
-          .eq('square_item_id', id)
+      if (image_url !== undefined) upsertData.image_url = image_url || null
+      if (variants !== undefined) upsertData.variants = variants
+
+      const { error: upsertErr } = await service
+        .from('menu_image_overrides')
+        .upsert(upsertData, { onConflict: 'square_item_id' })
+
+      if (upsertErr) {
+        console.error('Failed to upsert menu overrides:', upsertErr)
       }
     }
 

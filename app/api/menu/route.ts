@@ -82,23 +82,23 @@ export async function GET() {
 
     // Fetch image overrides and variants from Supabase
     const service = createServiceClient()
-    let overrideMap = new Map<string, { image_url: string | null; variants: unknown }>()
-    try {
-      const { data: overrides } = await service
-        .from('menu_image_overrides')
-        .select('square_item_id, image_url, variants')
+    const { data: overrides, error: overrideErr } = await service
+      .from('menu_image_overrides')
+      .select('square_item_id, image_url, variants')
 
-      overrideMap = new Map(
-        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants }])
-      )
-    } catch {
+    let overrideMap = new Map<string, { image_url: string | null; variants: unknown }>()
+    if (overrideErr) {
       // Fallback: fetch without variants column if it doesn't exist yet
-      const { data: overrides } = await service
+      const { data: fallback } = await service
         .from('menu_image_overrides')
         .select('square_item_id, image_url')
 
       overrideMap = new Map(
-        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null }])
+        (fallback ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null }])
+      )
+    } else {
+      overrideMap = new Map(
+        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants }])
       )
     }
 
