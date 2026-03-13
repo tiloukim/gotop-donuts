@@ -328,6 +328,11 @@ export default function AdminOrdersPage() {
                 {order.order_items.map(item => (
                   <div key={item.id} className="text-sm">
                     <span className="font-medium">{item.quantity}x</span> {item.name}
+                    {item.selected_variants && Object.keys(item.selected_variants).length > 0 && (
+                      <span className="text-purple-600 text-xs ml-1">
+                        ({Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(', ')})
+                      </span>
+                    )}
                     {item.special_instructions && (
                       <span className="text-gray-400"> — {item.special_instructions}</span>
                     )}
@@ -423,7 +428,14 @@ export default function AdminOrdersPage() {
                       <div className="bg-white/60 rounded-lg p-3">
                         {order.order_items.map(item => (
                           <div key={item.id} className="text-sm flex justify-between">
-                            <span><span className="font-medium">{item.quantity}x</span> {item.name}</span>
+                            <span>
+                              <span className="font-medium">{item.quantity}x</span> {item.name}
+                              {item.selected_variants && Object.keys(item.selected_variants).length > 0 && (
+                                <span className="text-purple-600 text-xs ml-1">
+                                  ({Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(', ')})
+                                </span>
+                              )}
+                            </span>
                             <span className="text-gray-500">${Number(item.total_price).toFixed(2)}</span>
                           </div>
                         ))}
@@ -492,6 +504,11 @@ export default function AdminOrdersPage() {
                           <div key={item.id} className="text-sm flex justify-between">
                             <div>
                               <span className="font-medium">{item.quantity}x</span> {item.name}
+                              {item.selected_variants && Object.keys(item.selected_variants).length > 0 && (
+                                <span className="text-purple-600 text-xs ml-1">
+                                  ({Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(', ')})
+                                </span>
+                              )}
                               {item.special_instructions && <span className="text-gray-400 text-xs ml-1">— {item.special_instructions}</span>}
                             </div>
                             <span className="text-gray-500">${Number(item.total_price).toFixed(2)}</span>

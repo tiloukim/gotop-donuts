@@ -26,6 +26,11 @@ export interface Address {
   created_at: string;
 }
 
+export interface VariantGroup {
+  name: string;
+  options: string[];
+}
+
 export interface MenuItem {
   id: string;
   category: MenuCategory;
@@ -36,6 +41,7 @@ export interface MenuItem {
   is_available: boolean;
   sort_order: number;
   created_at: string;
+  variants?: VariantGroup[] | null;
 }
 
 export interface Order {
@@ -77,6 +83,7 @@ export interface OrderItem {
   unit_price: number;
   total_price: number;
   special_instructions: string | null;
+  selected_variants?: Record<string, string> | null;
 }
 
 export interface DeliveryAddress {
@@ -111,4 +118,5 @@ export interface CartItem {
   quantity: number;
   special_instructions: string;
   image_url: string | null;
+  selectedVariants?: Record<string, string>;
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Plus, Pencil, Trash2, Upload, X, Eye, EyeOff, Loader2, FileSpreadsheet, Check, AlertCircle, Settings } from 'lucide-react'
 import Link from 'next/link'
-import type { MenuCategory, AdminMenuItem } from '@/lib/types'
+import type { MenuCategory, AdminMenuItem, VariantGroup } from '@/lib/types'
 
 const CATEGORIES: { value: 'all' | MenuCategory; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -12,6 +12,11 @@ const CATEGORIES: { value: 'all' | MenuCategory; label: string }[] = [
   { value: 'drinks', label: 'Drinks' },
 ]
 
+interface VariantFormGroup {
+  name: string
+  options: string // comma-separated
+}
+
 interface ItemForm {
   name: string
   description: string
@@ -19,6 +24,7 @@ interface ItemForm {
   category: MenuCategory
   is_taxable: boolean
   image_url: string
+  variants: VariantFormGroup[]
 }
 
 const EMPTY_FORM: ItemForm = {
@@ -28,6 +34,7 @@ const EMPTY_FORM: ItemForm = {
   category: 'donuts',
   is_taxable: true,
   image_url: '',
+  variants: [],
 }
 
 interface CsvRow {
@@ -146,6 +153,10 @@ export default function AdminMenuPage() {
       category: item.category,
       is_taxable: item.is_taxable,
       image_url: item.image_url || '',
+      variants: (item.variants ?? []).map((v: VariantGroup) => ({
+        name: v.name,
+        options: v.options.join(', '),
+      })),
     })
     setImagePreview(item.image_url)
     setModalOpen(true)
@@ -180,10 +191,23 @@ export default function AdminMenuPage() {
     }
   }
 
+  function formVariantsToApi(formVariants: VariantFormGroup[]): VariantGroup[] | null {
+    const parsed = formVariants
+      .filter(v => v.name.trim() && v.options.trim())
+      .map(v => ({
+        name: v.name.trim(),
+        options: v.options.split(',').map(o => o.trim()).filter(Boolean),
+      }))
+      .filter(v => v.options.length > 0)
+    return parsed.length > 0 ? parsed : null
+  }
+
   async function handleSave() {
     if (!form.name.trim() || !form.price) return
     setSaving(true)
     setError(null)
+
+    const variants = formVariantsToApi(form.variants)
 
     try {
       if (editingId) {
@@ -196,6 +220,7 @@ export default function AdminMenuPage() {
             price: parseFloat(form.price),
             is_taxable: form.is_taxable,
             image_url: form.image_url || null,
+            variants,
           }),
         })
         if (!res.ok) throw new Error('Failed to update')
@@ -210,6 +235,7 @@ export default function AdminMenuPage() {
             category: form.category,
             is_taxable: form.is_taxable,
             image_url: form.image_url || null,
+            variants,
           }),
         })
         if (!res.ok) throw new Error('Failed to create')
@@ -425,6 +451,11 @@ export default function AdminMenuPage() {
                   <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 capitalize">
                     {item.category}
                   </span>
+                  {item.variants && item.variants.length > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-600">
+                      Variants
+                    </span>
+                  )}
                   {item.is_taxable && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">
                       Tax
@@ -567,6 +598,66 @@ export default function AdminMenuPage() {
                     form.is_taxable ? 'translate-x-6' : 'translate-x-1'
                   }`} />
                 </button>
+              </div>
+
+              {/* Variants */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">Variants</label>
+                  <button
+                    type="button"
+                    onClick={() => setForm(prev => ({
+                      ...prev,
+                      variants: [...prev.variants, { name: '', options: '' }],
+                    }))}
+                    className="text-xs text-primary hover:text-primary/80 font-medium"
+                  >
+                    + Add variant group
+                  </button>
+                </div>
+                {form.variants.length === 0 && (
+                  <p className="text-xs text-gray-400">No variants (e.g. Size: Small, Medium, Large)</p>
+                )}
+                <div className="space-y-2">
+                  {form.variants.map((v, idx) => (
+                    <div key={idx} className="flex gap-2 items-start">
+                      <input
+                        type="text"
+                        placeholder="Group name (e.g. Size)"
+                        value={v.name}
+                        onChange={e => setForm(prev => ({
+                          ...prev,
+                          variants: prev.variants.map((vv, i) =>
+                            i === idx ? { ...vv, name: e.target.value } : vv
+                          ),
+                        }))}
+                        className="w-1/3 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Options (comma-separated)"
+                        value={v.options}
+                        onChange={e => setForm(prev => ({
+                          ...prev,
+                          variants: prev.variants.map((vv, i) =>
+                            i === idx ? { ...vv, options: e.target.value } : vv
+                          ),
+                        }))}
+                        className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({
+                          ...prev,
+                          variants: prev.variants.filter((_, i) => i !== idx),
+                        }))}
+                        className="p-1.5 text-gray-400 hover:text-red-500"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Image upload */}

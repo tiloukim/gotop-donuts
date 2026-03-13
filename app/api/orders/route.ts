@@ -121,6 +121,9 @@ export async function POST(request: NextRequest) {
       unit_price: unitPrice,
       total_price: totalPrice,
       special_instructions: item.special_instructions || null,
+      selected_variants: item.selectedVariants && Object.keys(item.selectedVariants).length > 0
+        ? item.selectedVariants
+        : null,
     };
   });
 

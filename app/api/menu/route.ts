@@ -80,15 +80,27 @@ export async function GET() {
       }
     }
 
-    // Fetch image overrides from Supabase
+    // Fetch image overrides and variants from Supabase
     const service = createServiceClient()
-    const { data: overrides } = await service
-      .from('menu_image_overrides')
-      .select('square_item_id, image_url')
+    let overrideMap = new Map<string, { image_url: string | null; variants: unknown }>()
+    try {
+      const { data: overrides } = await service
+        .from('menu_image_overrides')
+        .select('square_item_id, image_url, variants')
 
-    const overrideMap = new Map(
-      (overrides ?? []).map(o => [o.square_item_id, o.image_url])
-    )
+      overrideMap = new Map(
+        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants }])
+      )
+    } catch {
+      // Fallback: fetch without variants column if it doesn't exist yet
+      const { data: overrides } = await service
+        .from('menu_image_overrides')
+        .select('square_item_id, image_url')
+
+      overrideMap = new Map(
+        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null }])
+      )
+    }
 
     // Transform Square items to our MenuItem format
     const itemsOnly = catalogItems.filter((item): item is Extract<typeof item, { type: 'ITEM' }> =>
@@ -107,10 +119,11 @@ export async function GET() {
         const categoryName = categoryId ? categoryMap.get(categoryId) : null
         const category = categoryName ? mapCategory(categoryName) : 'donuts'
 
-        // Get image URL (override takes priority)
+        // Get image URL and variants (override takes priority)
         const imageId = data.imageIds?.[0]
         const squareImageUrl = imageId ? imageMap.get(imageId) : null
-        const imageUrl = overrideMap.get(item.id) || squareImageUrl
+        const overrideData = overrideMap.get(item.id)
+        const imageUrl = overrideData?.image_url || squareImageUrl
 
         // Get price (Square stores in cents)
         const priceCents = priceMoney?.amount ? Number(priceMoney.amount) : 0
@@ -126,6 +139,7 @@ export async function GET() {
           is_available: !data.isArchived,
           sort_order: index,
           created_at: new Date().toISOString(),
+          variants: overrideData?.variants || null,
         }
       })
       .filter(item => item.is_available && item.price > 0)

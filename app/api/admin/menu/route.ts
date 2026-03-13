@@ -83,15 +83,26 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch image overrides from Supabase
+    // Fetch image overrides and variants from Supabase
     const service = createServiceClient()
-    const { data: overrides } = await service
-      .from('menu_image_overrides')
-      .select('square_item_id, image_url')
+    let overrideMap = new Map<string, { image_url: string | null; variants: unknown }>()
+    try {
+      const { data: overrides } = await service
+        .from('menu_image_overrides')
+        .select('square_item_id, image_url, variants')
 
-    const overrideMap = new Map(
-      (overrides ?? []).map(o => [o.square_item_id, o.image_url])
-    )
+      overrideMap = new Map(
+        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants }])
+      )
+    } catch {
+      const { data: overrides } = await service
+        .from('menu_image_overrides')
+        .select('square_item_id, image_url')
+
+      overrideMap = new Map(
+        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null }])
+      )
+    }
 
     // Transform to admin items (include all, even unavailable)
     const itemsOnly = catalogItems.filter((item): item is Extract<typeof item, { type: 'ITEM' }> =>
@@ -111,7 +122,8 @@ export async function GET(request: NextRequest) {
 
       const imageId = data.imageIds?.[0]
       const squareImageUrl = imageId ? imageMap.get(imageId) : null
-      const overrideImageUrl = overrideMap.get(item.id)
+      const overrideData = overrideMap.get(item.id)
+      const overrideImageUrl = overrideData?.image_url
 
       const priceCents = priceMoney?.amount ? Number(priceMoney.amount) : 0
       const price = priceCents / 100
@@ -128,6 +140,7 @@ export async function GET(request: NextRequest) {
         is_taxable: data.isTaxable !== false,
         sort_order: index,
         created_at: item.updatedAt || new Date().toISOString(),
+        variants: overrideData?.variants || null,
       }
     })
 
@@ -146,7 +159,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { name, description, price, category, image_url, is_taxable } = await request.json()
+    const { name, description, price, category, image_url, is_taxable, variants } = await request.json()
 
     if (!name || price == null || price < 0) {
       return NextResponse.json({ error: 'Name and valid price required' }, { status: 400 })
@@ -185,14 +198,15 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Save image override if provided
-    if (image_url && catalogObject?.id) {
+    // Save image override and/or variants if provided
+    if ((image_url || variants) && catalogObject?.id) {
       const service = createServiceClient()
       await service
         .from('menu_image_overrides')
         .upsert({
           square_item_id: catalogObject.id,
-          image_url,
+          ...(image_url && { image_url }),
+          ...(variants && { variants }),
           updated_at: new Date().toISOString(),
         })
     }

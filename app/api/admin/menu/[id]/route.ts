@@ -18,7 +18,7 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { name, description, price, is_available, is_taxable, image_url } = body
+    const { name, description, price, is_available, is_taxable, image_url, variants } = body
 
     const square = getSquareClient()
 
@@ -73,19 +73,22 @@ export async function PATCH(
       },
     })
 
-    // Update image override if provided
-    if (image_url !== undefined) {
+    // Update image override and/or variants if provided
+    if (image_url !== undefined || variants !== undefined) {
       const service = createServiceClient()
-      if (image_url) {
+      if (image_url || variants !== undefined) {
+        const upsertData: Record<string, unknown> = {
+          square_item_id: id,
+          updated_at: new Date().toISOString(),
+        }
+        if (image_url !== undefined) upsertData.image_url = image_url || null
+        if (variants !== undefined) upsertData.variants = variants
         await service
           .from('menu_image_overrides')
-          .upsert({
-            square_item_id: id,
-            image_url,
-            updated_at: new Date().toISOString(),
-          })
-      } else {
-        // Remove override if explicitly set to null
+          .upsert(upsertData)
+      }
+      if (image_url === null && variants === undefined) {
+        // Remove override only if clearing image and not setting variants
         await service
           .from('menu_image_overrides')
           .delete()
