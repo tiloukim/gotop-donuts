@@ -50,17 +50,25 @@ export default function MenuPage() {
 
       {/* Items Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={`grid gap-6 ${
+          activeTab === 'breakfast'
+            ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
+            : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+        }`}>
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-gray-100 rounded-xl h-72 animate-pulse" />
+            <div key={i} className={`bg-gray-100 rounded-xl animate-pulse ${activeTab === 'breakfast' ? 'h-56' : 'h-72'}`} />
           ))}
         </div>
       ) : filtered.length === 0 ? (
         <p className="text-center text-gray-500 py-12">No items available in this category yet.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={`grid gap-6 ${
+          activeTab === 'breakfast'
+            ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
+            : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+        }`}>
           {filtered.map((item) => (
-            <MenuItemCard key={item.id} item={item} />
+            <MenuItemCard key={item.id} item={item} compact={activeTab === 'breakfast'} />
           ))}
         </div>
       )}

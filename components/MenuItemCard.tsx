@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useCartStore } from '@/lib/cart-store';
 import type { MenuItem } from '@/lib/types';
 
-export default function MenuItemCard({ item }: { item: MenuItem }) {
+export default function MenuItemCard({ item, compact }: { item: MenuItem; compact?: boolean }) {
   const addItem = useCartStore((s) => s.addItem);
   const hasVariants = item.variants && item.variants.length > 0;
 
@@ -38,12 +38,12 @@ export default function MenuItemCard({ item }: { item: MenuItem }) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       {item.image_url ? (
-        <div className="h-48 bg-cream flex items-center justify-center overflow-hidden">
+        <div className={`${compact ? 'h-32' : 'h-48'} bg-cream flex items-center justify-center overflow-hidden`}>
           <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
         </div>
       ) : (
-        <div className="h-48 bg-cream flex items-center justify-center">
-          <span className="text-5xl">
+        <div className={`${compact ? 'h-32' : 'h-48'} bg-cream flex items-center justify-center`}>
+          <span className={compact ? 'text-4xl' : 'text-5xl'}>
             {item.category === 'donuts' ? '🍩' : item.category === 'drinks' ? '☕' : '🥞'}
           </span>
         </div>
