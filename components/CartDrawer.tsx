@@ -1,6 +1,6 @@
 'use client';
 
-import { useCartStore } from '@/lib/cart-store';
+import { useCartStore, getCartKey } from '@/lib/cart-store';
 import Link from 'next/link';
 
 interface CartDrawerProps {
@@ -37,41 +37,49 @@ export default function CartDrawer({ open, onClose }: CartDrawerProps) {
             </div>
           ) : (
             <div className="space-y-4">
-              {items.map((item) => (
-                <div key={item.menu_item_id} className="flex gap-3 bg-gray-50 rounded-lg p-3">
-                  <div className="flex-1">
-                    <h3 className="font-medium">{item.name}</h3>
-                    <p className="text-sm text-gray-500">${item.price.toFixed(2)} each</p>
-                    {item.special_instructions && (
-                      <p className="text-xs text-gray-400 mt-1">{item.special_instructions}</p>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <button
-                      onClick={() => removeItem(item.menu_item_id)}
-                      className="text-gray-400 hover:text-red-500 text-xs"
-                    >
-                      Remove
-                    </button>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => updateQuantity(item.menu_item_id, item.quantity - 1)}
-                        className="w-7 h-7 rounded-full border flex items-center justify-center text-gray-600 hover:bg-gray-100"
-                      >
-                        -
-                      </button>
-                      <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.menu_item_id, item.quantity + 1)}
-                        className="w-7 h-7 rounded-full border flex items-center justify-center text-gray-600 hover:bg-gray-100"
-                      >
-                        +
-                      </button>
+              {items.map((item) => {
+                const key = getCartKey(item);
+                return (
+                  <div key={key} className="flex gap-3 bg-gray-50 rounded-lg p-3">
+                    <div className="flex-1">
+                      <h3 className="font-medium">{item.name}</h3>
+                      <p className="text-sm text-gray-500">${item.price.toFixed(2)} each</p>
+                      {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {Object.entries(item.selectedVariants).map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                        </p>
+                      )}
+                      {item.special_instructions && (
+                        <p className="text-xs text-gray-400 mt-1">{item.special_instructions}</p>
+                      )}
                     </div>
-                    <p className="text-sm font-semibold">${(item.price * item.quantity).toFixed(2)}</p>
+                    <div className="flex flex-col items-end gap-2">
+                      <button
+                        onClick={() => removeItem(key)}
+                        className="text-gray-400 hover:text-red-500 text-xs"
+                      >
+                        Remove
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateQuantity(key, item.quantity - 1)}
+                          className="w-7 h-7 rounded-full border flex items-center justify-center text-gray-600 hover:bg-gray-100"
+                        >
+                          -
+                        </button>
+                        <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(key, item.quantity + 1)}
+                          className="w-7 h-7 rounded-full border flex items-center justify-center text-gray-600 hover:bg-gray-100"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <p className="text-sm font-semibold">${(item.price * item.quantity).toFixed(2)}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
