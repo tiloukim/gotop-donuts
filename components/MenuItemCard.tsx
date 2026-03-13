@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useCartStore } from '@/lib/cart-store';
 import type { MenuItem } from '@/lib/types';
 
-export default function MenuItemCard({ item, compact }: { item: MenuItem; compact?: boolean }) {
+export default function MenuItemCard({ item }: { item: MenuItem }) {
   const addItem = useCartStore((s) => s.addItem);
   const hasVariants = item.variants && item.variants.length > 0;
 
@@ -36,19 +36,19 @@ export default function MenuItemCard({ item, compact }: { item: MenuItem; compac
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
       {item.image_url ? (
-        <div className={`${compact ? 'h-32' : 'h-48'} bg-cream flex items-center justify-center overflow-hidden`}>
+        <div className="h-32 bg-cream flex items-center justify-center overflow-hidden">
           <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
         </div>
       ) : (
-        <div className={`${compact ? 'h-32' : 'h-48'} bg-cream flex items-center justify-center`}>
-          <span className={compact ? 'text-4xl' : 'text-5xl'}>
+        <div className="h-32 bg-cream flex items-center justify-center">
+          <span className="text-4xl">
             {item.category === 'donuts' ? '🍩' : item.category === 'drinks' ? '☕' : '🥞'}
           </span>
         </div>
       )}
-      <div className="p-4">
+      <div className="p-4 flex flex-col flex-1">
         <div className="flex justify-between items-start mb-2">
           <h3 className="font-semibold text-dark">{item.name}</h3>
           <span className="font-bold text-primary">${item.price.toFixed(2)}</span>
@@ -56,7 +56,7 @@ export default function MenuItemCard({ item, compact }: { item: MenuItem; compac
         <p className="text-sm text-gray-500 mb-4 line-clamp-2">{item.description}</p>
 
         {hasVariants && (
-          <div className="space-y-2 mb-3">
+          <div className="space-y-2 mb-3 mt-auto">
             {item.variants!.map((variant) => (
               <div key={variant.name}>
                 <label className="block text-xs font-medium text-gray-600 mb-1">{variant.name}</label>
@@ -80,7 +80,7 @@ export default function MenuItemCard({ item, compact }: { item: MenuItem; compac
         <button
           onClick={handleAdd}
           disabled={!item.is_available || !allSelected}
-          className="w-full py-2 rounded-lg font-medium text-sm disabled:bg-gray-200 disabled:text-gray-400 bg-primary text-white hover:bg-primary-dark transition-colors"
+          className={`w-full py-2 rounded-lg font-medium text-sm disabled:bg-gray-200 disabled:text-gray-400 bg-primary text-white hover:bg-primary-dark transition-colors ${!hasVariants ? 'mt-auto' : ''}`}
         >
           {!item.is_available ? 'Unavailable' : !allSelected ? 'Select Options' : 'Add to Cart'}
         </button>
