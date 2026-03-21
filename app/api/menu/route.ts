@@ -82,35 +82,34 @@ export async function GET() {
 
     // Fetch image overrides and variants from Supabase
     const service = createServiceClient()
-    let overrideMap = new Map<string, { image_url: string | null; variants: unknown; category: string | null }>()
+    let overrideMap = new Map<string, { image_url: string | null; variants: unknown; category: string | null; hidden_on_web: boolean }>()
 
     // Try fetching with all columns, fall back gracefully if columns don't exist yet
     const { data: overrides, error: overrideErr } = await service
       .from('menu_image_overrides')
-      .select('square_item_id, image_url, variants, category')
+      .select('square_item_id, image_url, variants, category, hidden_on_web')
 
     if (!overrideErr && overrides) {
       overrideMap = new Map(
-        overrides.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: o.category ?? null }])
+        overrides.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: o.category ?? null, hidden_on_web: o.hidden_on_web ?? false }])
       )
     } else {
-      // Fallback: try without category column
+      // Fallback: try without newer columns
       const { data: fallback2 } = await service
         .from('menu_image_overrides')
         .select('square_item_id, image_url, variants')
 
       if (fallback2) {
         overrideMap = new Map(
-          fallback2.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: null }])
+          fallback2.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: null, hidden_on_web: false }])
         )
       } else {
-        // Final fallback: just image_url
         const { data: fallback3 } = await service
           .from('menu_image_overrides')
           .select('square_item_id, image_url')
 
         overrideMap = new Map(
-          (fallback3 ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null, category: null }])
+          (fallback3 ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null, category: null, hidden_on_web: false }])
         )
       }
     }
@@ -149,7 +148,7 @@ export async function GET() {
           description: data.description || '',
           price,
           image_url: imageUrl || null,
-          is_available: !data.isArchived,
+          is_available: !data.isArchived && !(overrideData?.hidden_on_web ?? false),
           sort_order: index,
           created_at: new Date().toISOString(),
           variants: overrideData?.variants || null,

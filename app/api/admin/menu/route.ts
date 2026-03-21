@@ -85,15 +85,15 @@ export async function GET(request: NextRequest) {
 
     // Fetch image overrides and variants from Supabase
     const service = createServiceClient()
-    let overrideMap = new Map<string, { image_url: string | null; variants: unknown; category: string | null }>()
+    let overrideMap = new Map<string, { image_url: string | null; variants: unknown; category: string | null; hidden_on_web: boolean }>()
 
     const { data: overrides, error: overrideErr } = await service
       .from('menu_image_overrides')
-      .select('square_item_id, image_url, variants, category')
+      .select('square_item_id, image_url, variants, category, hidden_on_web')
 
     if (!overrideErr && overrides) {
       overrideMap = new Map(
-        overrides.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: o.category ?? null }])
+        overrides.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: o.category ?? null, hidden_on_web: o.hidden_on_web ?? false }])
       )
     } else {
       const { data: fallback2 } = await service
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
 
       if (fallback2) {
         overrideMap = new Map(
-          fallback2.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: null }])
+          fallback2.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: null, hidden_on_web: false }])
         )
       } else {
         const { data: fallback3 } = await service
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
           .select('square_item_id, image_url')
 
         overrideMap = new Map(
-          (fallback3 ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null, category: null }])
+          (fallback3 ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null, category: null, hidden_on_web: false }])
         )
       }
     }
@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
         description: data.description || '',
         price,
         image_url: overrideImageUrl || squareImageUrl || null,
-        is_available: !data.isArchived,
+        is_available: !(overrideData?.hidden_on_web ?? false),
         is_taxable: data.isTaxable !== false,
         sort_order: index,
         created_at: item.updatedAt || new Date().toISOString(),

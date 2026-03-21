@@ -20,61 +20,66 @@ export async function PATCH(
     const body = await request.json()
     const { name, description, price, category, is_available, is_taxable, image_url, variants } = body
 
-    const square = getSquareClient()
+    // Check if this is only a web visibility toggle (no Square update needed)
+    const isVisibilityOnly = is_available !== undefined && name === undefined && description === undefined && price === undefined && is_taxable === undefined
 
-    // Fetch current object for version
-    const { object: current } = await square.catalog.object.get({ objectId: id })
-    if (!current || current.type !== 'ITEM') {
-      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
-    }
+    if (!isVisibilityOnly) {
+      const square = getSquareClient()
 
-    const currentData = current.itemData!
-    const firstVariation = currentData.variations?.[0]
-    const currentVariation = firstVariation?.type === 'ITEM_VARIATION' ? firstVariation : null
+      // Fetch current object for version
+      const { object: current } = await square.catalog.object.get({ objectId: id })
+      if (!current || current.type !== 'ITEM') {
+        return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+      }
 
-    // Build updated item data
-    const updatedItemData: Record<string, unknown> = {
-      name: name ?? currentData.name,
-      description: description ?? currentData.description,
-      isArchived: is_available != null ? !is_available : currentData.isArchived,
-      isTaxable: is_taxable != null ? is_taxable : currentData.isTaxable,
-      variations: currentData.variations,
-      categories: currentData.categories,
-      reportingCategory: currentData.reportingCategory,
-      imageIds: currentData.imageIds,
-    }
+      const currentData = current.itemData!
+      const firstVariation = currentData.variations?.[0]
+      const currentVariation = firstVariation?.type === 'ITEM_VARIATION' ? firstVariation : null
 
-    // Update price on the variation if provided
-    if (price != null && currentVariation) {
-      const priceCents = BigInt(Math.round(price * 100))
-      updatedItemData.variations = [
-        {
-          type: 'ITEM_VARIATION' as const,
-          id: currentVariation.id,
-          version: currentVariation.version,
-          itemVariationData: {
-            ...currentVariation.itemVariationData,
-            priceMoney: {
-              amount: priceCents,
-              currency: 'USD',
+      // Build updated item data
+      const updatedItemData: Record<string, unknown> = {
+        name: name ?? currentData.name,
+        description: description ?? currentData.description,
+        isArchived: currentData.isArchived,
+        isTaxable: is_taxable != null ? is_taxable : currentData.isTaxable,
+        variations: currentData.variations,
+        categories: currentData.categories,
+        reportingCategory: currentData.reportingCategory,
+        imageIds: currentData.imageIds,
+      }
+
+      // Update price on the variation if provided
+      if (price != null && currentVariation) {
+        const priceCents = BigInt(Math.round(price * 100))
+        updatedItemData.variations = [
+          {
+            type: 'ITEM_VARIATION' as const,
+            id: currentVariation.id,
+            version: currentVariation.version,
+            itemVariationData: {
+              ...currentVariation.itemVariationData,
+              priceMoney: {
+                amount: priceCents,
+                currency: 'USD',
+              },
             },
           },
+        ]
+      }
+
+      await square.catalog.object.upsert({
+        idempotencyKey: crypto.randomUUID(),
+        object: {
+          type: 'ITEM',
+          id: current.id,
+          version: current.version,
+          itemData: updatedItemData,
         },
-      ]
+      })
     }
 
-    await square.catalog.object.upsert({
-      idempotencyKey: crypto.randomUUID(),
-      object: {
-        type: 'ITEM',
-        id: current.id,
-        version: current.version,
-        itemData: updatedItemData,
-      },
-    })
-
-    // Update image override, variants, and/or category if provided
-    if (image_url !== undefined || variants !== undefined || category !== undefined) {
+    // Update overrides in Supabase (image, variants, category, web visibility)
+    if (image_url !== undefined || variants !== undefined || category !== undefined || is_available !== undefined) {
       const service = createServiceClient()
       const upsertData: Record<string, unknown> = {
         square_item_id: id,
@@ -83,6 +88,7 @@ export async function PATCH(
       if (image_url !== undefined) upsertData.image_url = image_url || null
       if (variants !== undefined) upsertData.variants = variants
       if (category !== undefined) upsertData.category = category
+      if (is_available !== undefined) upsertData.hidden_on_web = !is_available
 
       const { error: upsertErr } = await service
         .from('menu_image_overrides')
