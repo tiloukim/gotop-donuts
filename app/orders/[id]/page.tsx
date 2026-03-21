@@ -191,7 +191,18 @@ export default function OrderDetailPage() {
           <span>${order.total.toFixed(2)}</span>
         </div>
         {order.points_earned > 0 && (
-          <p className="text-sm text-accent mt-2">+{order.points_earned} reward points earned</p>
+          <div className="mt-3 bg-accent/10 border border-accent/20 rounded-lg px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-accent">+{order.points_earned} reward points earned!</p>
+              <p className="text-xs text-gray-500">Earn 100 points, get $5 off your next order</p>
+            </div>
+            <span className="text-2xl">⭐</span>
+          </div>
+        )}
+        {order.points_redeemed > 0 && (
+          <div className="mt-2 text-sm text-primary font-medium">
+            {order.points_redeemed} points redeemed for ${order.discount.toFixed(2)} off
+          </div>
         )}
       </div>
 

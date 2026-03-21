@@ -78,9 +78,16 @@ export default function OrdersPage() {
                   <p className="text-sm font-semibold mt-1">${order.total.toFixed(2)}</p>
                 </div>
               </div>
-              <p className="text-sm text-gray-500">
-                {order.order_items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-              </p>
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-gray-500 flex-1 truncate">
+                  {order.order_items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                </p>
+                {order.points_earned > 0 && (
+                  <span className="text-xs text-accent font-medium ml-2 whitespace-nowrap">
+                    +{order.points_earned} pts
+                  </span>
+                )}
+              </div>
             </Link>
           ))}
         </div>

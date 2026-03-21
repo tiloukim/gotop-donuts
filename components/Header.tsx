@@ -16,13 +16,22 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [rewardPoints, setRewardPoints] = useState<number | null>(null);
   const itemCount = useCartStore((s) => s.getItemCount());
 
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      if (data.user) {
+        fetch('/api/rewards')
+          .then(r => r.json())
+          .then(d => setRewardPoints(d.points ?? 0))
+          .catch(() => {});
+      }
+    });
   }, []);
 
   if (pathname.startsWith('/admin')) return null;
@@ -45,8 +54,13 @@ export default function Header() {
                 <Link href="/orders" className="text-gray-700 hover:text-primary font-medium">
                   Orders
                 </Link>
-                <Link href="/rewards" className="text-gray-700 hover:text-primary font-medium">
+                <Link href="/rewards" className="text-gray-700 hover:text-primary font-medium flex items-center gap-1.5">
                   Rewards
+                  {mounted && rewardPoints != null && rewardPoints > 0 && (
+                    <span className="bg-accent/10 text-accent text-xs font-semibold px-2 py-0.5 rounded-full">
+                      {rewardPoints} pts
+                    </span>
+                  )}
                 </Link>
               </>
             )}
@@ -115,7 +129,14 @@ export default function Header() {
             {user && (
               <>
                 <Link href="/orders" className="block py-2 text-gray-700 font-medium" onClick={() => setMenuOpen(false)}>Orders</Link>
-                <Link href="/rewards" className="block py-2 text-gray-700 font-medium" onClick={() => setMenuOpen(false)}>Rewards</Link>
+                <Link href="/rewards" className="block py-2 text-gray-700 font-medium flex items-center gap-2" onClick={() => setMenuOpen(false)}>
+                  Rewards
+                  {mounted && rewardPoints != null && rewardPoints > 0 && (
+                    <span className="bg-accent/10 text-accent text-xs font-semibold px-2 py-0.5 rounded-full">
+                      {rewardPoints} pts
+                    </span>
+                  )}
+                </Link>
                 <Link href="/account" className="block py-2 text-gray-700 font-medium" onClick={() => setMenuOpen(false)}>Account</Link>
                 {user.email === ADMIN_EMAIL && (
                   <Link href="/admin" className="block py-2 text-gray-800 font-bold" onClick={() => setMenuOpen(false)}>Admin Dashboard</Link>
