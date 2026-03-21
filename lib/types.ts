@@ -26,9 +26,14 @@ export interface Address {
   created_at: string;
 }
 
+export interface VariantOption {
+  name: string;
+  price: number;
+}
+
 export interface VariantGroup {
   name: string;
-  options: string[];
+  options: VariantOption[];
 }
 
 export interface MenuItem {

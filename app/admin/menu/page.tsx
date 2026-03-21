@@ -12,9 +12,14 @@ const CATEGORIES: { value: 'all' | MenuCategory; label: string }[] = [
   { value: 'drinks', label: 'Drinks' },
 ]
 
+interface VariantFormOption {
+  name: string
+  price: string
+}
+
 interface VariantFormGroup {
   name: string
-  options: string // comma-separated
+  options: VariantFormOption[]
 }
 
 interface ItemForm {
@@ -156,7 +161,11 @@ export default function AdminMenuPage() {
       image_url: item.image_url || '',
       variants: (item.variants ?? []).map((v: VariantGroup) => ({
         name: v.name,
-        options: v.options.join(', '),
+        options: v.options.map((o) =>
+          typeof o === 'string'
+            ? { name: o, price: '' }
+            : { name: o.name, price: o.price ? o.price.toFixed(2) : '' }
+        ),
       })),
     })
     setImagePreview(item.image_url)
@@ -193,10 +202,15 @@ export default function AdminMenuPage() {
 
   function formVariantsToApi(formVariants: VariantFormGroup[]): VariantGroup[] | null {
     const parsed = formVariants
-      .filter(v => v.name.trim() && v.options.trim())
+      .filter(v => v.name.trim() && v.options.length > 0)
       .map(v => ({
         name: v.name.trim(),
-        options: v.options.split(',').map(o => o.trim()).filter(Boolean),
+        options: v.options
+          .filter(o => o.name.trim())
+          .map(o => ({
+            name: o.name.trim(),
+            price: parseFloat(o.price) || 0,
+          })),
       }))
       .filter(v => v.options.length > 0)
     return parsed.length > 0 ? parsed : null
@@ -635,7 +649,7 @@ export default function AdminMenuPage() {
                     type="button"
                     onClick={() => setForm(prev => ({
                       ...prev,
-                      variants: [...prev.variants, { name: '', options: '' }],
+                      variants: [...prev.variants, { name: '', options: [{ name: '', price: '' }] }],
                     }))}
                     className="text-xs text-primary hover:text-primary/80 font-medium"
                   >
@@ -643,44 +657,107 @@ export default function AdminMenuPage() {
                   </button>
                 </div>
                 {form.variants.length === 0 && (
-                  <p className="text-xs text-gray-400">No variants (e.g. Size: Small, Medium, Large)</p>
+                  <p className="text-xs text-gray-400">No variants (e.g. Quantity: 1pc $1.35, 6pc $7.00, 1 Dozen $13.00)</p>
                 )}
-                <div className="space-y-2">
+                <div className="space-y-4">
                   {form.variants.map((v, idx) => (
-                    <div key={idx} className="flex gap-2 items-start">
-                      <input
-                        type="text"
-                        placeholder="Group name (e.g. Size)"
-                        value={v.name}
-                        onChange={e => setForm(prev => ({
-                          ...prev,
-                          variants: prev.variants.map((vv, i) =>
-                            i === idx ? { ...vv, name: e.target.value } : vv
-                          ),
-                        }))}
-                        className="w-1/3 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Options (comma-separated)"
-                        value={v.options}
-                        onChange={e => setForm(prev => ({
-                          ...prev,
-                          variants: prev.variants.map((vv, i) =>
-                            i === idx ? { ...vv, options: e.target.value } : vv
-                          ),
-                        }))}
-                        className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                      />
+                    <div key={idx} className="border border-gray-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <input
+                          type="text"
+                          placeholder="Group name (e.g. Quantity)"
+                          value={v.name}
+                          onChange={e => setForm(prev => ({
+                            ...prev,
+                            variants: prev.variants.map((vv, i) =>
+                              i === idx ? { ...vv, name: e.target.value } : vv
+                            ),
+                          }))}
+                          className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setForm(prev => ({
+                            ...prev,
+                            variants: prev.variants.filter((_, i) => i !== idx),
+                          }))}
+                          className="p-1.5 text-gray-400 hover:text-red-500"
+                          title="Remove group"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <div className="space-y-1.5">
+                        {v.options.map((opt, optIdx) => (
+                          <div key={optIdx} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              placeholder="Option (e.g. 1 Dozen)"
+                              value={opt.name}
+                              onChange={e => setForm(prev => ({
+                                ...prev,
+                                variants: prev.variants.map((vv, i) =>
+                                  i === idx ? {
+                                    ...vv,
+                                    options: vv.options.map((oo, oi) =>
+                                      oi === optIdx ? { ...oo, name: e.target.value } : oo
+                                    ),
+                                  } : vv
+                                ),
+                              }))}
+                              className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                            />
+                            <div className="relative w-24">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="0.00"
+                                value={opt.price}
+                                onChange={e => setForm(prev => ({
+                                  ...prev,
+                                  variants: prev.variants.map((vv, i) =>
+                                    i === idx ? {
+                                      ...vv,
+                                      options: vv.options.map((oo, oi) =>
+                                        oi === optIdx ? { ...oo, price: e.target.value } : oo
+                                      ),
+                                    } : vv
+                                  ),
+                                }))}
+                                className="w-full pl-5 pr-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setForm(prev => ({
+                                ...prev,
+                                variants: prev.variants.map((vv, i) =>
+                                  i === idx ? {
+                                    ...vv,
+                                    options: vv.options.filter((_, oi) => oi !== optIdx),
+                                  } : vv
+                                ),
+                              }))}
+                              className="p-1 text-gray-400 hover:text-red-500"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                       <button
                         type="button"
                         onClick={() => setForm(prev => ({
                           ...prev,
-                          variants: prev.variants.filter((_, i) => i !== idx),
+                          variants: prev.variants.map((vv, i) =>
+                            i === idx ? { ...vv, options: [...vv.options, { name: '', price: '' }] } : vv
+                          ),
                         }))}
-                        className="p-1.5 text-gray-400 hover:text-red-500"
+                        className="text-xs text-primary hover:text-primary/80 font-medium mt-2"
                       >
-                        <X size={14} />
+                        + Add option
                       </button>
                     </div>
                   ))}
