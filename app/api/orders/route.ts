@@ -199,6 +199,40 @@ export async function POST(request: NextRequest) {
     let squareOrderTotal: bigint | undefined;
 
     try {
+      // Build fulfillment based on order type
+      const fulfillmentType = orderType === 'delivery' ? 'DELIVERY' : 'PICKUP';
+      const displayName = user.user_metadata?.full_name || user.email || 'Online Customer';
+
+      const fulfillment: Record<string, unknown> = {
+        type: fulfillmentType,
+        state: 'PROPOSED',
+      };
+
+      if (fulfillmentType === 'PICKUP') {
+        fulfillment.pickupDetails = {
+          recipient: {
+            displayName,
+            emailAddress: user.email,
+          },
+          pickupAt: scheduledAt || new Date(Date.now() + 20 * 60 * 1000).toISOString(),
+          note: notes || 'Online order',
+        };
+      } else {
+        fulfillment.deliveryDetails = {
+          recipient: {
+            displayName,
+            emailAddress: user.email,
+            address: deliveryAddress ? {
+              addressLine1: deliveryAddress.street,
+              locality: deliveryAddress.city,
+              administrativeDistrictLevel1: deliveryAddress.state,
+              postalCode: deliveryAddress.zip,
+            } : undefined,
+          },
+          note: notes || 'Online delivery order',
+        };
+      }
+
       const { order: squareOrder } = await square.orders.create({
         order: {
           locationId,
@@ -219,6 +253,7 @@ export async function POST(request: NextRequest) {
               scope: 'ORDER' as const,
             }],
           }),
+          fulfillments: [fulfillment],
         },
         idempotencyKey: randomUUID(),
       });

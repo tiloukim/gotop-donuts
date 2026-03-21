@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { getSquareClient } from '@/lib/square'
+import type { FulfillmentState } from 'square'
 import { ADMIN_EMAIL } from '@/lib/constants'
 import { NextRequest, NextResponse } from 'next/server'
 import type { OrderStatus } from '@/lib/types'
@@ -82,6 +84,45 @@ export async function PATCH(request: NextRequest) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // Sync fulfillment state to Square POS
+  if (data?.square_order_id) {
+    const fulfillmentStateMap: Record<string, string> = {
+      received: 'PROPOSED',
+      preparing: 'RESERVED',
+      ready: 'PREPARED',
+      out_for_delivery: 'PREPARED',
+      delivered: 'COMPLETED',
+      picked_up: 'COMPLETED',
+      cancelled: 'CANCELED',
+    }
+    const squareFulfillmentState = fulfillmentStateMap[status]
+    if (squareFulfillmentState) {
+      try {
+        const square = getSquareClient()
+        // Fetch the current order to get fulfillment UID and version
+        const { order: currentOrder } = await square.orders.get({ orderId: data.square_order_id })
+        const fulfillment = currentOrder?.fulfillments?.[0]
+        if (fulfillment?.uid && currentOrder?.version) {
+          await square.orders.update({
+            orderId: data.square_order_id,
+            order: {
+              locationId: process.env.SQUARE_LOCATION_ID!,
+              version: currentOrder.version,
+              fulfillments: [{
+                uid: fulfillment.uid,
+                state: squareFulfillmentState as FulfillmentState,
+              }],
+            },
+            idempotencyKey: `${order_id}-${status}-${Date.now()}`,
+          })
+        }
+      } catch (squareErr) {
+        console.error('Square fulfillment sync failed:', squareErr)
+        // Don't fail the request — DB update already succeeded
+      }
+    }
   }
 
   return NextResponse.json(data)
