@@ -130,7 +130,7 @@ export async function DELETE(
       const pathParts = url.pathname.split('/')
       const fileName = pathParts[pathParts.length - 1]
       if (fileName) {
-        await service.storage.from('menu-images').remove([fileName])
+        await service.storage.from('images').remove([fileName])
       }
     }
 

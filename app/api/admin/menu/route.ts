@@ -225,6 +225,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (err) {
     console.error('Admin menu create error:', err)
-    return NextResponse.json({ error: 'Failed to create item' }, { status: 500 })
+    const message = err instanceof Error ? err.message : 'Failed to create item'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

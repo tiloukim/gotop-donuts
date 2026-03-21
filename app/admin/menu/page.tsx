@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Plus, Pencil, Trash2, Upload, X, Eye, EyeOff, Loader2, FileSpreadsheet, Check, AlertCircle, Settings } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, X, Eye, EyeOff, Loader2, FileSpreadsheet, Check, AlertCircle, Settings, Search } from 'lucide-react'
 import Link from 'next/link'
 import type { MenuCategory, AdminMenuItem, VariantGroup } from '@/lib/types'
 
@@ -120,6 +120,7 @@ export default function AdminMenuPage() {
   const [importResults, setImportResults] = useState<{ succeeded: number; failed: number } | null>(null)
   const csvInputRef = useRef<HTMLInputElement>(null)
 
+  const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const fetchItems = useCallback(async () => {
@@ -166,12 +167,11 @@ export default function AdminMenuPage() {
     const formData = new FormData()
     formData.append('file', file)
     const res = await fetch('/api/admin/menu/upload', { method: 'POST', body: formData })
+    const data = await res.json()
     if (!res.ok) {
-      const data = await res.json()
       throw new Error(data.error || 'Upload failed')
     }
-    const { url } = await res.json()
-    return url
+    return data.url
   }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -223,7 +223,10 @@ export default function AdminMenuPage() {
             variants,
           }),
         })
-        if (!res.ok) throw new Error('Failed to update')
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error || 'Failed to update item')
+        }
       } else {
         const res = await fetch('/api/admin/menu', {
           method: 'POST',
@@ -238,12 +241,15 @@ export default function AdminMenuPage() {
             variants,
           }),
         })
-        if (!res.ok) throw new Error('Failed to create')
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error || 'Failed to create item')
+        }
       }
       setModalOpen(false)
       await fetchItems()
-    } catch {
-      setError('Failed to save item')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save item')
     } finally {
       setSaving(false)
     }
@@ -348,9 +354,11 @@ export default function AdminMenuPage() {
     }
   }
 
-  const filteredItems = activeTab === 'all'
-    ? items
-    : items.filter(item => item.category === activeTab)
+  const filteredItems = items.filter(item => {
+    const matchesTab = activeTab === 'all' || item.category === activeTab
+    const matchesSearch = !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesTab && matchesSearch
+  })
 
   if (loading) {
     return (
@@ -392,6 +400,26 @@ export default function AdminMenuPage() {
           </button>
         </div>
       )}
+
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search items by name..."
+          className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
 
       {/* Category tabs */}
       <div className="flex gap-1 mb-6 bg-gray-100 rounded-lg p-1 w-fit">

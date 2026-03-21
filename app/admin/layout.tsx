@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ADMIN_EMAIL } from '@/lib/constants'
-import { LayoutDashboard, ShoppingBag, Users, UtensilsCrossed, Menu, X } from 'lucide-react'
+import { LayoutDashboard, ShoppingBag, Users, UtensilsCrossed, Menu, X, LogOut } from 'lucide-react'
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -100,6 +100,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             )
           })}
         </nav>
+
+        <div className="p-3 border-t border-gray-200">
+          <button
+            onClick={async () => {
+              const supabase = createClient()
+              await supabase.auth.signOut()
+              router.replace('/')
+            }}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors w-full"
+          >
+            <LogOut size={18} />
+            Sign Out
+          </button>
+        </div>
       </aside>
 
       {/* Main content */}

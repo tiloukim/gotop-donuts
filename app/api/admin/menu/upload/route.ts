@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer())
 
     const { error: uploadError } = await service.storage
-      .from('menu-images')
+      .from('images')
       .upload(fileName, buffer, {
         contentType: file.type,
         upsert: false,
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: { publicUrl } } = service.storage
-      .from('menu-images')
+      .from('images')
       .getPublicUrl(fileName)
 
     return NextResponse.json({ url: publicUrl })
