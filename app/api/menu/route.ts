@@ -144,9 +144,9 @@ export async function GET() {
         return {
           id: item.id,
           category,
-          name: data.name || 'Unknown',
-          description: data.description || '',
-          price,
+          name: (overrideData as Record<string, unknown>)?.name as string || data.name || 'Unknown',
+          description: (overrideData as Record<string, unknown>)?.description as string ?? data.description ?? '',
+          price: (overrideData as Record<string, unknown>)?.price as number ?? price,
           image_url: imageUrl || null,
           is_available: !data.isArchived && !(overrideData?.hidden_on_web ?? false),
           sort_order: index,
@@ -156,6 +156,32 @@ export async function GET() {
       })
       .filter(item => item.is_available && item.price > 0)
       .sort((a, b) => a.sort_order - b.sort_order)
+
+    // Add web-only items
+    const { data: webOnlyItems } = await service
+      .from('menu_image_overrides')
+      .select('*')
+      .eq('is_web_only', true)
+      .eq('hidden_on_web', false)
+
+    if (webOnlyItems) {
+      for (const webItem of webOnlyItems) {
+        if (webItem.price > 0) {
+          menuItems.push({
+            id: webItem.square_item_id,
+            category: webItem.category || 'donuts',
+            name: webItem.name || 'Unknown',
+            description: webItem.description || '',
+            price: webItem.price,
+            image_url: webItem.image_url || null,
+            is_available: true,
+            sort_order: menuItems.length,
+            created_at: webItem.updated_at || new Date().toISOString(),
+            variants: webItem.variants || null,
+          })
+        }
+      }
+    }
 
     return NextResponse.json(menuItems, {
       headers: {
