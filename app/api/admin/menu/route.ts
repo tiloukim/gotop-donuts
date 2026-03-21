@@ -85,23 +85,34 @@ export async function GET(request: NextRequest) {
 
     // Fetch image overrides and variants from Supabase
     const service = createServiceClient()
+    let overrideMap = new Map<string, { image_url: string | null; variants: unknown; category: string | null }>()
+
     const { data: overrides, error: overrideErr } = await service
       .from('menu_image_overrides')
       .select('square_item_id, image_url, variants, category')
 
-    let overrideMap = new Map<string, { image_url: string | null; variants: unknown; category: string | null }>()
-    if (overrideErr) {
-      const { data: fallback } = await service
-        .from('menu_image_overrides')
-        .select('square_item_id, image_url')
-
+    if (!overrideErr && overrides) {
       overrideMap = new Map(
-        (fallback ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null, category: null }])
+        overrides.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: o.category ?? null }])
       )
     } else {
-      overrideMap = new Map(
-        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: o.category ?? null }])
-      )
+      const { data: fallback2 } = await service
+        .from('menu_image_overrides')
+        .select('square_item_id, image_url, variants')
+
+      if (fallback2) {
+        overrideMap = new Map(
+          fallback2.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: null }])
+        )
+      } else {
+        const { data: fallback3 } = await service
+          .from('menu_image_overrides')
+          .select('square_item_id, image_url')
+
+        overrideMap = new Map(
+          (fallback3 ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null, category: null }])
+        )
+      }
     }
 
     // Transform to admin items (include all, even unavailable)

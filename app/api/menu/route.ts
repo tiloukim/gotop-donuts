@@ -82,24 +82,37 @@ export async function GET() {
 
     // Fetch image overrides and variants from Supabase
     const service = createServiceClient()
+    let overrideMap = new Map<string, { image_url: string | null; variants: unknown; category: string | null }>()
+
+    // Try fetching with all columns, fall back gracefully if columns don't exist yet
     const { data: overrides, error: overrideErr } = await service
       .from('menu_image_overrides')
       .select('square_item_id, image_url, variants, category')
 
-    let overrideMap = new Map<string, { image_url: string | null; variants: unknown; category: string | null }>()
-    if (overrideErr) {
-      // Fallback: fetch without variants/category columns if they don't exist yet
-      const { data: fallback } = await service
-        .from('menu_image_overrides')
-        .select('square_item_id, image_url')
-
+    if (!overrideErr && overrides) {
       overrideMap = new Map(
-        (fallback ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null, category: null }])
+        overrides.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: o.category ?? null }])
       )
     } else {
-      overrideMap = new Map(
-        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: o.category ?? null }])
-      )
+      // Fallback: try without category column
+      const { data: fallback2 } = await service
+        .from('menu_image_overrides')
+        .select('square_item_id, image_url, variants')
+
+      if (fallback2) {
+        overrideMap = new Map(
+          fallback2.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: null }])
+        )
+      } else {
+        // Final fallback: just image_url
+        const { data: fallback3 } = await service
+          .from('menu_image_overrides')
+          .select('square_item_id, image_url')
+
+        overrideMap = new Map(
+          (fallback3 ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null, category: null }])
+        )
+      }
     }
 
     // Transform Square items to our MenuItem format
