@@ -84,21 +84,21 @@ export async function GET() {
     const service = createServiceClient()
     const { data: overrides, error: overrideErr } = await service
       .from('menu_image_overrides')
-      .select('square_item_id, image_url, variants')
+      .select('square_item_id, image_url, variants, category')
 
-    let overrideMap = new Map<string, { image_url: string | null; variants: unknown }>()
+    let overrideMap = new Map<string, { image_url: string | null; variants: unknown; category: string | null }>()
     if (overrideErr) {
-      // Fallback: fetch without variants column if it doesn't exist yet
+      // Fallback: fetch without variants/category columns if they don't exist yet
       const { data: fallback } = await service
         .from('menu_image_overrides')
         .select('square_item_id, image_url')
 
       overrideMap = new Map(
-        (fallback ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null }])
+        (fallback ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null, category: null }])
       )
     } else {
       overrideMap = new Map(
-        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants }])
+        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: o.category ?? null }])
       )
     }
 
@@ -117,12 +117,12 @@ export async function GET() {
         // Get category
         const categoryId = data.categories?.[0]?.id || data.reportingCategory?.id
         const categoryName = categoryId ? categoryMap.get(categoryId) : null
-        const category = categoryName ? mapCategory(categoryName) : 'donuts'
+        const overrideData = overrideMap.get(item.id)
+        const category = overrideData?.category || (categoryName ? mapCategory(categoryName) : 'donuts')
 
         // Get image URL and variants (override takes priority)
         const imageId = data.imageIds?.[0]
         const squareImageUrl = imageId ? imageMap.get(imageId) : null
-        const overrideData = overrideMap.get(item.id)
         const imageUrl = overrideData?.image_url || squareImageUrl
 
         // Get price (Square stores in cents)

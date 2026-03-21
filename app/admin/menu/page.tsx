@@ -218,6 +218,7 @@ export default function AdminMenuPage() {
             name: form.name.trim(),
             description: form.description.trim(),
             price: parseFloat(form.price),
+            category: form.category,
             is_taxable: form.is_taxable,
             image_url: form.image_url || null,
             variants,
@@ -593,20 +594,18 @@ export default function AdminMenuPage() {
                     placeholder="0.00"
                   />
                 </div>
-                {!editingId && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                    <select
-                      value={form.category}
-                      onChange={e => setForm(prev => ({ ...prev, category: e.target.value as MenuCategory }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white"
-                    >
-                      <option value="breakfast">Breakfast</option>
-                      <option value="donuts">Donuts</option>
-                      <option value="drinks">Drinks</option>
-                    </select>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    value={form.category}
+                    onChange={e => setForm(prev => ({ ...prev, category: e.target.value as MenuCategory }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white"
+                  >
+                    <option value="breakfast">Breakfast</option>
+                    <option value="donuts">Donuts</option>
+                    <option value="drinks">Drinks</option>
+                  </select>
+                </div>
               </div>
 
               {/* Taxable toggle */}

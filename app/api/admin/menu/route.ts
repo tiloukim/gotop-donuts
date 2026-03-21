@@ -87,20 +87,20 @@ export async function GET(request: NextRequest) {
     const service = createServiceClient()
     const { data: overrides, error: overrideErr } = await service
       .from('menu_image_overrides')
-      .select('square_item_id, image_url, variants')
+      .select('square_item_id, image_url, variants, category')
 
-    let overrideMap = new Map<string, { image_url: string | null; variants: unknown }>()
+    let overrideMap = new Map<string, { image_url: string | null; variants: unknown; category: string | null }>()
     if (overrideErr) {
       const { data: fallback } = await service
         .from('menu_image_overrides')
         .select('square_item_id, image_url')
 
       overrideMap = new Map(
-        (fallback ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null }])
+        (fallback ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null, category: null }])
       )
     } else {
       overrideMap = new Map(
-        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants }])
+        (overrides ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: o.category ?? null }])
       )
     }
 
@@ -116,13 +116,14 @@ export async function GET(request: NextRequest) {
         ? variation.itemVariationData?.priceMoney
         : undefined
 
+      const overrideData = overrideMap.get(item.id)
+
       const categoryId = data.categories?.[0]?.id || data.reportingCategory?.id
       const categoryName = categoryId ? categoryMap.get(categoryId) : null
-      const category = categoryName ? mapCategory(categoryName) : 'donuts'
+      const category = overrideData?.category || (categoryName ? mapCategory(categoryName) : 'donuts')
 
       const imageId = data.imageIds?.[0]
       const squareImageUrl = imageId ? imageMap.get(imageId) : null
-      const overrideData = overrideMap.get(item.id)
       const overrideImageUrl = overrideData?.image_url
 
       const priceCents = priceMoney?.amount ? Number(priceMoney.amount) : 0

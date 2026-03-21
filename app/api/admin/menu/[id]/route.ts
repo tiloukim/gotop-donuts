@@ -18,7 +18,7 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { name, description, price, is_available, is_taxable, image_url, variants } = body
+    const { name, description, price, category, is_available, is_taxable, image_url, variants } = body
 
     const square = getSquareClient()
 
@@ -73,8 +73,8 @@ export async function PATCH(
       },
     })
 
-    // Update image override and/or variants if provided
-    if (image_url !== undefined || variants !== undefined) {
+    // Update image override, variants, and/or category if provided
+    if (image_url !== undefined || variants !== undefined || category !== undefined) {
       const service = createServiceClient()
       const upsertData: Record<string, unknown> = {
         square_item_id: id,
@@ -82,6 +82,7 @@ export async function PATCH(
       }
       if (image_url !== undefined) upsertData.image_url = image_url || null
       if (variants !== undefined) upsertData.variants = variants
+      if (category !== undefined) upsertData.category = category
 
       const { error: upsertErr } = await service
         .from('menu_image_overrides')
