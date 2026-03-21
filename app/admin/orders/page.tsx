@@ -22,8 +22,9 @@ export default function AdminOrdersPage() {
   const [showCompleted, setShowCompleted] = useState(false)
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
 
-  // Sound state
-  const [soundEnabled, setSoundEnabled] = useState(false)
+  // Sound state — default ON so staff don't miss orders
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [newOrderFlash, setNewOrderFlash] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   // Push state
@@ -107,8 +108,18 @@ export default function AdminOrdersPage() {
 
   const playSound = useCallback(() => {
     if (soundEnabled && audioRef.current) {
-      audioRef.current.currentTime = 0
-      audioRef.current.play().catch(() => {})
+      // Play sound 3 times so staff don't miss it
+      let count = 0
+      const play = () => {
+        if (count >= 3 || !audioRef.current) return
+        audioRef.current.currentTime = 0
+        audioRef.current.play().catch(() => {})
+        count++
+        if (count < 3) {
+          setTimeout(play, 1500)
+        }
+      }
+      play()
     }
   }, [soundEnabled])
 
@@ -140,6 +151,8 @@ export default function AdminOrdersPage() {
         { event: 'INSERT', schema: 'public', table: 'orders' },
         () => {
           playSound()
+          setNewOrderFlash(true)
+          setTimeout(() => setNewOrderFlash(false), 5000)
           loadOrders()
         }
       )
@@ -288,6 +301,23 @@ export default function AdminOrdersPage() {
           </button>
         </div>
       </div>
+
+      {/* New order flash alert */}
+      {newOrderFlash && (
+        <div className="mb-4 p-4 bg-green-50 border-2 border-green-400 rounded-xl flex items-center gap-3 animate-pulse">
+          <span className="text-2xl">🔔</span>
+          <div>
+            <p className="font-bold text-green-800">New Online Order!</p>
+            <p className="text-sm text-green-600">A new order just came in — check below</p>
+          </div>
+          <button
+            onClick={() => setNewOrderFlash(false)}
+            className="ml-auto text-green-400 hover:text-green-600 text-lg font-bold"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Active Orders */}
       <h2 className="text-lg font-semibold mb-4">
