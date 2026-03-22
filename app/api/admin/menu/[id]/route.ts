@@ -37,42 +37,27 @@ export async function PATCH(
 
     // All edits from web admin go to Supabase only — never update Square POS
     const service = createServiceClient()
-    const upsertData: Record<string, unknown> = {
-      square_item_id: id,
+    const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     }
-    if (name !== undefined) upsertData.name = name.trim()
-    if (description !== undefined) upsertData.description = description.trim()
-    if (price !== undefined) upsertData.price = price
-    if (category !== undefined) upsertData.category = category
-    if (is_taxable !== undefined) upsertData.is_taxable = is_taxable
-    if (image_url !== undefined) upsertData.image_url = image_url || null
-    if (variants !== undefined) upsertData.variants = variants
-    if (is_available !== undefined) upsertData.hidden_on_web = !is_available
+    if (name !== undefined) updateData.name = name.trim()
+    if (description !== undefined) updateData.description = description.trim()
+    if (price !== undefined) updateData.price = price
+    if (category !== undefined) updateData.category = category
+    if (is_taxable !== undefined) updateData.is_taxable = is_taxable
+    if (image_url !== undefined) updateData.image_url = image_url || ''
+    if (variants !== undefined) updateData.variants = variants
+    if (is_available !== undefined) updateData.hidden_on_web = !is_available
 
-    // Try upsert with all fields
-    let { error: upsertErr } = await service
+    // Update existing row (items already exist in the table)
+    const { error: updateErr } = await service
       .from('menu_image_overrides')
-      .upsert(upsertData, { onConflict: 'square_item_id' })
+      .update(updateData)
+      .eq('square_item_id', id)
 
-    if (upsertErr) {
-      console.error('Upsert failed, trying without newer columns:', upsertErr.message)
-      // Remove columns that might not exist yet
-      delete upsertData.hidden_on_web
-      delete upsertData.is_taxable
-      delete upsertData.category
-      delete upsertData.name
-      delete upsertData.description
-      delete upsertData.price
-
-      const { error: retryErr } = await service
-        .from('menu_image_overrides')
-        .upsert(upsertData, { onConflict: 'square_item_id' })
-
-      if (retryErr) {
-        console.error('Retry upsert also failed:', retryErr.message)
-        return NextResponse.json({ error: retryErr.message }, { status: 500 })
-      }
+    if (updateErr) {
+      console.error('Update failed:', updateErr.message)
+      return NextResponse.json({ error: updateErr.message }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true })
@@ -96,23 +81,14 @@ export async function DELETE(
   try {
     const service = createServiceClient()
 
-    // Try to set hidden_on_web first (soft delete)
-    const { error: hideErr } = await service
+    // Delete the row from Supabase
+    const { error: deleteErr } = await service
       .from('menu_image_overrides')
-      .update({ hidden_on_web: true, updated_at: new Date().toISOString() })
+      .delete()
       .eq('square_item_id', id)
 
-    if (hideErr) {
-      // If hidden_on_web column doesn't exist, delete the row entirely
-      console.error('Hide failed, trying hard delete:', hideErr.message)
-      const { error: deleteErr } = await service
-        .from('menu_image_overrides')
-        .delete()
-        .eq('square_item_id', id)
-
-      if (deleteErr) {
-        return NextResponse.json({ error: deleteErr.message }, { status: 500 })
-      }
+    if (deleteErr) {
+      return NextResponse.json({ error: deleteErr.message }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true })
