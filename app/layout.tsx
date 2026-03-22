@@ -25,6 +25,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.gotopdonuts.com"),
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/icon-192.png',
+  },
   title: "GoTop Donuts — Fresh Donuts & Breakfast in Tyler, TX",
   description:
     "Order fresh donuts, breakfast sandwiches, and drinks online for pickup or delivery from GoTop Donuts in Tyler, Texas.",
