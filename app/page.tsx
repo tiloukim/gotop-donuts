@@ -1,16 +1,26 @@
+import Image from 'next/image';
 import Link from 'next/link';
 
 export default function HomePage() {
   return (
     <>
-      {/* Hero */}
-      <section className="bg-cream">
-        <div className="max-w-7xl mx-auto px-4 py-20 md:py-32 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold text-dark mb-4">
+      {/* Hero with Shop Image */}
+      <section className="relative bg-dark overflow-hidden">
+        <div className="absolute inset-0">
+          <Image
+            src="/TopDonutShop.png"
+            alt="GoTop Donuts Shop in Tyler, TX"
+            fill
+            className="object-cover opacity-50"
+            priority
+          />
+        </div>
+        <div className="relative max-w-7xl mx-auto px-4 py-24 md:py-36 text-center">
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
             Fresh Donuts,{' '}
             <span className="text-primary">Made Daily</span>
           </h1>
-          <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-gray-200 mb-8 max-w-2xl mx-auto">
             From classic glazed to creative specialties — order online for pickup or delivery in Tyler, TX.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -22,7 +32,7 @@ export default function HomePage() {
             </Link>
             <Link
               href="/menu"
-              className="border-2 border-dark text-dark px-8 py-4 rounded-xl text-lg font-semibold hover:bg-dark hover:text-white transition-colors"
+              className="border-2 border-white text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-white hover:text-dark transition-colors"
             >
               View Menu
             </Link>
