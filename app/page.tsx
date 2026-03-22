@@ -3,35 +3,42 @@ import Link from 'next/link';
 export default function HomePage() {
   return (
     <>
-      {/* Hero with Shop Image */}
-      <section className="relative overflow-hidden">
-        <img
-          src="/TopDonutShop.png"
-          alt="GoTop Donuts Shop in Tyler, TX"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-black/60" />
-        <div className="relative max-w-7xl mx-auto px-4 py-24 md:py-36 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
-            Fresh Donuts,{' '}
-            <span className="text-primary">Made Daily</span>
-          </h1>
-          <p className="text-lg md:text-xl text-gray-200 mb-8 max-w-2xl mx-auto">
-            From classic glazed to creative specialties — order online for pickup or delivery in Tyler, TX.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/menu"
-              className="bg-primary text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-primary-dark transition-colors"
-            >
-              Order Now
-            </Link>
-            <Link
-              href="/menu"
-              className="border-2 border-white text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-white hover:text-dark transition-colors"
-            >
-              View Menu
-            </Link>
+      {/* Hero */}
+      <section className="bg-white">
+        <div className="max-w-7xl mx-auto px-4 py-12 md:py-20">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+            {/* Text */}
+            <div className="text-center md:text-left">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 leading-tight">
+                Fresh Donuts,{' '}
+                <span className="text-primary">Made Daily</span>
+              </h1>
+              <p className="text-lg text-gray-500 mb-8 max-w-lg">
+                From classic glazed to creative specialties — order online for pickup or delivery in Tyler, TX.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+                <Link
+                  href="/menu"
+                  className="bg-primary text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-primary-dark transition-colors shadow-lg shadow-primary/20"
+                >
+                  Order Now
+                </Link>
+                <Link
+                  href="/menu"
+                  className="border-2 border-gray-200 text-gray-700 px-8 py-4 rounded-xl text-lg font-semibold hover:border-gray-300 hover:bg-gray-50 transition-colors"
+                >
+                  View Menu
+                </Link>
+              </div>
+            </div>
+            {/* Image */}
+            <div className="rounded-2xl overflow-hidden shadow-2xl">
+              <img
+                src="/TopDonutShop.png"
+                alt="GoTop Donuts Shop in Tyler, TX"
+                className="w-full h-auto object-cover"
+              />
+            </div>
           </div>
         </div>
       </section>
