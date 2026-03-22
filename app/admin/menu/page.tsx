@@ -1,8 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Plus, Pencil, Trash2, Upload, X, Eye, EyeOff, Loader2, FileSpreadsheet, Check, AlertCircle, Settings, Search } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, X, Eye, EyeOff, Loader2, FileSpreadsheet, Check, AlertCircle, Settings, Search, GripVertical } from 'lucide-react'
 import Link from 'next/link'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import type { MenuCategory, AdminMenuItem, VariantGroup } from '@/lib/types'
 
 const CATEGORIES: { value: 'all' | MenuCategory; label: string }[] = [
@@ -97,6 +100,24 @@ function parseCsv(text: string): CsvRow[] {
   }).filter(r => r.name.trim() && r.price > 0)
 }
 
+function SortableMenuItem({ item, children }: { item: AdminMenuItem; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className={`flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg ${!item.is_available ? 'opacity-50' : ''} ${isDragging ? 'shadow-lg z-10' : ''}`}>
+      <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 touch-none" title="Drag to reorder">
+        <GripVertical size={18} />
+      </button>
+      {children}
+    </div>
+  )
+}
+
 export default function AdminMenuPage() {
   const [items, setItems] = useState<AdminMenuItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -126,7 +147,13 @@ export default function AdminMenuPage() {
   const csvInputRef = useRef<HTMLInputElement>(null)
 
   const [searchQuery, setSearchQuery] = useState('')
+  const [savingOrder, setSavingOrder] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
 
   const fetchItems = useCallback(async () => {
     try {
@@ -142,6 +169,43 @@ export default function AdminMenuPage() {
   }, [])
 
   useEffect(() => { fetchItems() }, [fetchItems])
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = filteredItems.findIndex(i => i.id === active.id)
+    const newIndex = filteredItems.findIndex(i => i.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = arrayMove(filteredItems, oldIndex, newIndex)
+
+    // Update local state immediately for instant feedback
+    if (activeTab === 'all' && !searchQuery) {
+      setItems(reordered)
+    } else {
+      // Reorder within the filtered view, keeping other items in place
+      const newItems = [...items]
+      const filteredIds = new Set(filteredItems.map(i => i.id))
+      const otherItems = newItems.filter(i => !filteredIds.has(i.id))
+      setItems([...reordered, ...otherItems])
+    }
+
+    // Save to server
+    setSavingOrder(true)
+    try {
+      const order = reordered.map((item, idx) => ({ id: item.id, sort_order: idx }))
+      await fetch('/api/admin/menu', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order }),
+      })
+    } catch {
+      setError('Failed to save order')
+    } finally {
+      setSavingOrder(false)
+    }
+  }
 
   function openAddModal() {
     setEditingId(null)
@@ -453,6 +517,13 @@ export default function AdminMenuPage() {
         ))}
       </div>
 
+      {/* Saving order indicator */}
+      {savingOrder && (
+        <div className="mb-2 text-xs text-gray-400 flex items-center gap-1">
+          <Loader2 size={12} className="animate-spin" /> Saving order...
+        </div>
+      )}
+
       {/* Items list */}
       {filteredItems.length === 0 ? (
         <div className="text-center py-12">
@@ -468,92 +539,91 @@ export default function AdminMenuPage() {
           )}
         </div>
       ) : (
-        <div className="space-y-2">
-          {filteredItems.map(item => (
-            <div
-              key={item.id}
-              className={`flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg ${
-                !item.is_available ? 'opacity-50' : ''
-              }`}
-            >
-              {/* Image */}
-              <div className="w-14 h-14 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
-                {item.image_url ? (
-                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
-                    No img
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={filteredItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {filteredItems.map(item => (
+                <SortableMenuItem key={item.id} item={item}>
+                  {/* Image */}
+                  <div className="w-14 h-14 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
+                    {item.image_url ? (
+                      <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
+                        No img
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900 truncate">{item.name}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 capitalize">
-                    {item.category}
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900 truncate">{item.name}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 capitalize">
+                        {item.category}
+                      </span>
+                      {item.variants && item.variants.length > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-600">
+                          Variants
+                        </span>
+                      )}
+                      {item.is_taxable && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">
+                          Tax
+                        </span>
+                      )}
+                      {!item.is_available && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                          Hidden
+                        </span>
+                      )}
+                    </div>
+                    {item.description && (
+                      <p className="text-sm text-gray-500 truncate mt-0.5">{item.description}</p>
+                    )}
+                  </div>
+
+                  {/* Price */}
+                  <span className="font-semibold text-gray-900 tabular-nums">
+                    ${item.price.toFixed(2)}
                   </span>
-                  {item.variants && item.variants.length > 0 && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-600">
-                      Variants
-                    </span>
-                  )}
-                  {item.is_taxable && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">
-                      Tax
-                    </span>
-                  )}
-                  {!item.is_available && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">
-                      Hidden
-                    </span>
-                  )}
-                </div>
-                {item.description && (
-                  <p className="text-sm text-gray-500 truncate mt-0.5">{item.description}</p>
-                )}
-              </div>
 
-              {/* Price */}
-              <span className="font-semibold text-gray-900 tabular-nums">
-                ${item.price.toFixed(2)}
-              </span>
-
-              {/* Actions */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => toggleAvailability(item)}
-                  disabled={togglingId === item.id}
-                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                  title={item.is_available ? 'Hide from menu' : 'Show on menu'}
-                >
-                  {togglingId === item.id ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : item.is_available ? (
-                    <Eye size={16} />
-                  ) : (
-                    <EyeOff size={16} />
-                  )}
-                </button>
-                <button
-                  onClick={() => openEditModal(item)}
-                  className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-                  title="Edit"
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  onClick={() => setDeleteId(item.id)}
-                  className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => toggleAvailability(item)}
+                      disabled={togglingId === item.id}
+                      className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                      title={item.is_available ? 'Hide from menu' : 'Show on menu'}
+                    >
+                      {togglingId === item.id ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : item.is_available ? (
+                        <Eye size={16} />
+                      ) : (
+                        <EyeOff size={16} />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => openEditModal(item)}
+                      className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                      title="Edit"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => setDeleteId(item.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </SortableMenuItem>
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Add/Edit Modal */}

@@ -11,6 +11,8 @@ export async function GET() {
       .from('menu_image_overrides')
       .select('*')
       .eq('hidden_on_web', false)
+      .order('sort_order', { ascending: true, nullsFirst: false })
+      .order('updated_at', { ascending: false })
 
     if (overrideErr) {
       console.error('Failed to fetch menu overrides:', overrideErr)

@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const { data: allItems, error } = await service
       .from('menu_image_overrides')
       .select('*')
+      .order('sort_order', { ascending: true, nullsFirst: false })
       .order('updated_at', { ascending: false })
 
     if (error) {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       image_url: item.image_url || null,
       is_available: !(item.hidden_on_web ?? false),
       is_taxable: item.is_taxable ?? true,
-      sort_order: index,
+      sort_order: item.sort_order ?? index,
       created_at: item.updated_at || new Date().toISOString(),
       variants: item.variants || null,
     }))
@@ -92,5 +93,35 @@ export async function POST(request: NextRequest) {
     console.error('Admin menu create error:', err)
     const message = err instanceof Error ? err.message : 'Failed to create item'
     return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user || user.email !== ADMIN_EMAIL) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  try {
+    const { order } = await request.json() as { order: { id: string; sort_order: number }[] }
+    if (!order?.length) {
+      return NextResponse.json({ error: 'Order array required' }, { status: 400 })
+    }
+
+    const service = createServiceClient()
+
+    // Update sort_order for each item
+    for (const item of order) {
+      await service
+        .from('menu_image_overrides')
+        .update({ sort_order: item.sort_order })
+        .eq('square_item_id', item.id)
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('Admin menu reorder error:', err)
+    return NextResponse.json({ error: 'Failed to reorder' }, { status: 500 })
   }
 }
