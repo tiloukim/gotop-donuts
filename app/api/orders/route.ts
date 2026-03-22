@@ -162,10 +162,16 @@ export async function POST(request: NextRequest) {
     // 1. Create Square order FIRST so payment links to it (shows item names on POS)
     const squareOrderItems = orderItems.map(item => {
       const catalogInfo = menuMap.get(item.menu_item_id);
+      const itemNote = [
+        item.special_instructions || '',
+        item.selected_variants ? Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(', ') : '',
+      ].filter(Boolean).join(' | ') || undefined;
+
       if (catalogInfo?.variationId) {
         return {
           catalogObjectId: catalogInfo.variationId,
           quantity: String(item.quantity),
+          ...(itemNote && { note: itemNote }),
         };
       }
       return {
@@ -175,6 +181,7 @@ export async function POST(request: NextRequest) {
           amount: BigInt(Math.round(item.unit_price * 100)),
           currency: 'USD' as const,
         },
+        ...(itemNote && { note: itemNote }),
       };
     });
 

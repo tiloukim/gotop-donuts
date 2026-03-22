@@ -235,6 +235,8 @@ export default function CartPage() {
         <h2 className="text-lg font-semibold mb-3">Special Requests</h2>
         <textarea
           placeholder="Any special requests for your order..."
+          defaultValue={typeof window !== 'undefined' ? sessionStorage.getItem('order_notes') || '' : ''}
+          onChange={(e) => sessionStorage.setItem('order_notes', e.target.value)}
           className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none"
           rows={3}
         />

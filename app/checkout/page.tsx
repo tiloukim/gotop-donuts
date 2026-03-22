@@ -12,7 +12,10 @@ export default function CheckoutPage() {
   const router = useRouter();
   const cart = useCartStore();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(() => {
+    if (typeof window !== 'undefined') return sessionStorage.getItem('order_notes') || '';
+    return '';
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
