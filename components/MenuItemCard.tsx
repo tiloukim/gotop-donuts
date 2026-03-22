@@ -75,11 +75,11 @@ export default function MenuItemCard({ item }: { item: MenuItem }) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
       {item.image_url ? (
-        <div className="h-32 bg-cream flex items-center justify-center overflow-hidden">
-          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+        <div className="h-40 bg-gray-50 flex items-center justify-center overflow-hidden p-2">
+          <img src={item.image_url} alt={item.name} className="w-full h-full object-contain" />
         </div>
       ) : (
-        <div className="h-32 bg-cream flex items-center justify-center">
+        <div className="h-40 bg-gray-50 flex items-center justify-center">
           <span className="text-4xl">
             {item.category === 'donuts' ? '🍩' : item.category === 'drinks' ? '☕' : '🥞'}
           </span>
