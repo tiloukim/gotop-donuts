@@ -2,184 +2,131 @@ import { getSquareClient } from '@/lib/square'
 import { createServiceClient } from '@/lib/supabase/service'
 import { NextResponse } from 'next/server'
 
-// Map Square category names to our app categories
-const CATEGORY_MAP: Record<string, string> = {
-  breakfast: 'breakfast',
-  donuts: 'donuts',
-  donut: 'donuts',
-  drinks: 'drinks',
-  drink: 'drinks',
-  beverages: 'drinks',
-  beverage: 'drinks',
-  coffee: 'drinks',
-}
-
-function mapCategory(name: string): string {
-  const lower = name.toLowerCase()
-  for (const [key, value] of Object.entries(CATEGORY_MAP)) {
-    if (lower.includes(key)) return value
-  }
-  return 'donuts'
-}
-
 export async function GET() {
   try {
-    const square = getSquareClient()
+    const service = createServiceClient()
 
-    // Fetch all catalog items from Square
-    const { items: catalogItems } = await square.catalog.searchItems({
-      enabledLocationIds: [process.env.SQUARE_LOCATION_ID!],
-    })
+    // Fetch all menu overrides from Supabase — this is the source of truth for the website
+    const { data: overrides, error: overrideErr } = await service
+      .from('menu_image_overrides')
+      .select('*')
+      .eq('hidden_on_web', false)
 
-    if (!catalogItems?.length) {
+    if (overrideErr) {
+      console.error('Failed to fetch menu overrides:', overrideErr)
+      return NextResponse.json({ error: 'Failed to load menu' }, { status: 500 })
+    }
+
+    if (!overrides?.length) {
       return NextResponse.json([])
     }
 
-    // Collect all category and image IDs we need to look up
-    const categoryIds = new Set<string>()
-    const imageIds = new Set<string>()
+    // Separate web-only items from Square-linked items
+    const webOnlyItems = overrides.filter(o => o.is_web_only)
+    const squareLinkedItems = overrides.filter(o => !o.is_web_only)
 
-    for (const item of catalogItems) {
-      if (item.type !== 'ITEM') continue
-      const data = item.itemData
-      if (data?.categories) {
-        for (const cat of data.categories) {
-          if (cat.id) categoryIds.add(cat.id)
-        }
-      }
-      if (data?.reportingCategory?.id) {
-        categoryIds.add(data.reportingCategory.id)
-      }
-      if (data?.imageIds) {
-        for (const id of data.imageIds) {
-          imageIds.add(id)
-        }
-      }
-    }
+    // For Square-linked items, fetch Square data for images (if no override image)
+    const squareIds = squareLinkedItems.map(o => o.square_item_id).filter(Boolean)
+    let squareDataMap = new Map<string, { name: string; description: string; price: number; imageUrl: string | null }>()
 
-    // Batch fetch categories and images
-    const objectIds = [...categoryIds, ...imageIds]
-    const categoryMap = new Map<string, string>()
-    const imageMap = new Map<string, string>()
+    if (squareIds.length > 0) {
+      try {
+        const square = getSquareClient()
+        const { objects } = await square.catalog.batchGet({
+          objectIds: squareIds,
+          includeRelatedObjects: true,
+        })
 
-    if (objectIds.length > 0) {
-      const { objects } = await square.catalog.batchGet({
-        objectIds,
-        includeRelatedObjects: false,
-      })
-
-      if (objects) {
-        for (const obj of objects) {
-          if (obj.type === 'CATEGORY' && obj.categoryData?.name && obj.id) {
-            categoryMap.set(obj.id, obj.categoryData.name)
+        if (objects) {
+          // Collect image URLs
+          const imageMap = new Map<string, string>()
+          for (const obj of objects) {
+            if (obj.type === 'IMAGE' && obj.imageData?.url && obj.id) {
+              imageMap.set(obj.id, obj.imageData.url)
+            }
           }
-          if (obj.type === 'IMAGE' && obj.imageData?.url && obj.id) {
-            imageMap.set(obj.id, obj.imageData.url)
+
+          for (const obj of objects) {
+            if (obj.type === 'ITEM' && obj.itemData && obj.id) {
+              const variation = obj.itemData.variations?.[0]
+              const priceMoney = variation?.type === 'ITEM_VARIATION'
+                ? variation.itemVariationData?.priceMoney
+                : undefined
+              const priceCents = priceMoney?.amount ? Number(priceMoney.amount) : 0
+
+              const imageId = obj.itemData.imageIds?.[0]
+              const imageUrl = imageId ? imageMap.get(imageId) ?? null : null
+
+              squareDataMap.set(obj.id, {
+                name: obj.itemData.name || 'Unknown',
+                description: obj.itemData.description || '',
+                price: priceCents / 100,
+                imageUrl,
+              })
+            }
           }
         }
+      } catch {
+        // Square fetch failed — use Supabase data only
       }
     }
 
-    // Fetch image overrides and variants from Supabase
-    const service = createServiceClient()
-    let overrideMap = new Map<string, { image_url: string | null; variants: unknown; category: string | null; hidden_on_web: boolean }>()
+    // Build menu items — Supabase overrides always take priority
+    const menuItems: Array<{
+      id: string
+      category: string
+      name: string
+      description: string
+      price: number
+      image_url: string | null
+      is_available: boolean
+      sort_order: number
+      created_at: string
+      variants: unknown
+    }> = []
 
-    // Try fetching with all columns, fall back gracefully if columns don't exist yet
-    const { data: overrides, error: overrideErr } = await service
-      .from('menu_image_overrides')
-      .select('square_item_id, image_url, variants, category, hidden_on_web')
+    let sortIndex = 0
 
-    if (!overrideErr && overrides) {
-      overrideMap = new Map(
-        overrides.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: o.category ?? null, hidden_on_web: o.hidden_on_web ?? false }])
-      )
-    } else {
-      // Fallback: try without newer columns
-      const { data: fallback2 } = await service
-        .from('menu_image_overrides')
-        .select('square_item_id, image_url, variants')
+    // Add Square-linked items (only those managed in web admin)
+    for (const override of squareLinkedItems) {
+      const squareData = squareDataMap.get(override.square_item_id)
 
-      if (fallback2) {
-        overrideMap = new Map(
-          fallback2.map(o => [o.square_item_id, { image_url: o.image_url, variants: o.variants, category: null, hidden_on_web: false }])
-        )
-      } else {
-        const { data: fallback3 } = await service
-          .from('menu_image_overrides')
-          .select('square_item_id, image_url')
+      const name = override.name || squareData?.name || 'Unknown'
+      const description = override.description ?? squareData?.description ?? ''
+      const price = override.price ?? squareData?.price ?? 0
+      const imageUrl = override.image_url || squareData?.imageUrl || null
 
-        overrideMap = new Map(
-          (fallback3 ?? []).map(o => [o.square_item_id, { image_url: o.image_url, variants: null, category: null, hidden_on_web: false }])
-        )
+      if (price > 0) {
+        menuItems.push({
+          id: override.square_item_id,
+          category: override.category || 'donuts',
+          name,
+          description,
+          price,
+          image_url: imageUrl,
+          is_available: true,
+          sort_order: sortIndex++,
+          created_at: override.updated_at || new Date().toISOString(),
+          variants: override.variants || null,
+        })
       }
     }
-
-    // Transform Square items to our MenuItem format
-    const itemsOnly = catalogItems.filter((item): item is Extract<typeof item, { type: 'ITEM' }> =>
-      item.type === 'ITEM' && !!item.itemData
-    )
-    const menuItems = itemsOnly
-      .map((item, index) => {
-        const data = item.itemData!
-        const variation = data.variations?.[0]
-        const priceMoney = variation?.type === 'ITEM_VARIATION'
-          ? variation.itemVariationData?.priceMoney
-          : undefined
-
-        // Get category
-        const categoryId = data.categories?.[0]?.id || data.reportingCategory?.id
-        const categoryName = categoryId ? categoryMap.get(categoryId) : null
-        const overrideData = overrideMap.get(item.id)
-        const category = overrideData?.category || (categoryName ? mapCategory(categoryName) : 'donuts')
-
-        // Get image URL and variants (override takes priority)
-        const imageId = data.imageIds?.[0]
-        const squareImageUrl = imageId ? imageMap.get(imageId) : null
-        const imageUrl = overrideData?.image_url || squareImageUrl
-
-        // Get price (Square stores in cents)
-        const priceCents = priceMoney?.amount ? Number(priceMoney.amount) : 0
-        const price = priceCents / 100
-
-        return {
-          id: item.id,
-          category,
-          name: (overrideData as Record<string, unknown>)?.name as string || data.name || 'Unknown',
-          description: (overrideData as Record<string, unknown>)?.description as string ?? data.description ?? '',
-          price: (overrideData as Record<string, unknown>)?.price as number ?? price,
-          image_url: imageUrl || null,
-          is_available: !data.isArchived && !(overrideData?.hidden_on_web ?? false),
-          sort_order: index,
-          created_at: new Date().toISOString(),
-          variants: overrideData?.variants || null,
-        }
-      })
-      .filter(item => item.is_available && item.price > 0)
-      .sort((a, b) => a.sort_order - b.sort_order)
 
     // Add web-only items
-    const { data: webOnlyItems } = await service
-      .from('menu_image_overrides')
-      .select('*')
-      .eq('is_web_only', true)
-      .eq('hidden_on_web', false)
-
-    if (webOnlyItems) {
-      for (const webItem of webOnlyItems) {
-        if (webItem.price > 0) {
-          menuItems.push({
-            id: webItem.square_item_id,
-            category: webItem.category || 'donuts',
-            name: webItem.name || 'Unknown',
-            description: webItem.description || '',
-            price: webItem.price,
-            image_url: webItem.image_url || null,
-            is_available: true,
-            sort_order: menuItems.length,
-            created_at: webItem.updated_at || new Date().toISOString(),
-            variants: webItem.variants || null,
-          })
-        }
+    for (const webItem of webOnlyItems) {
+      if (webItem.price > 0) {
+        menuItems.push({
+          id: webItem.square_item_id,
+          category: webItem.category || 'donuts',
+          name: webItem.name || 'Unknown',
+          description: webItem.description || '',
+          price: webItem.price,
+          image_url: webItem.image_url || null,
+          is_available: true,
+          sort_order: sortIndex++,
+          created_at: webItem.updated_at || new Date().toISOString(),
+          variants: webItem.variants || null,
+        })
       }
     }
 
@@ -189,7 +136,7 @@ export async function GET() {
       },
     })
   } catch (err) {
-    console.error('Failed to fetch Square catalog:', err)
+    console.error('Failed to fetch menu:', err)
     return NextResponse.json({ error: 'Failed to load menu' }, { status: 500 })
   }
 }
