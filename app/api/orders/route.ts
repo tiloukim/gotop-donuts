@@ -199,10 +199,23 @@ export async function POST(request: NextRequest) {
     let squareOrderTotal: bigint | undefined;
 
     try {
-      // Build fulfillment based on order type
       const fulfillmentType = orderType === 'delivery' ? 'DELIVERY' : 'PICKUP';
       const displayName = user.user_metadata?.full_name || user.email || 'Online Customer';
 
+      // Build receipt note for fulfillment
+      const receiptParts = ['www.gotopdonuts.com Online Order']
+      if (scheduledAt) {
+        const schedDate = new Date(scheduledAt)
+        const dateStr = schedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+        const timeStr = schedDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+        receiptParts.push(`${orderType === 'pickup' ? 'Pickup' : 'Delivery'}: ${dateStr} at ${timeStr}`)
+      } else {
+        receiptParts.push(`${orderType === 'pickup' ? 'Pickup' : 'Delivery'}: ASAP`)
+      }
+      if (notes) receiptParts.push(`Note: ${notes}`)
+      const fulfillmentNote = receiptParts.join(' | ')
+
+      // Build fulfillment based on order type
       const fulfillment: Record<string, unknown> = {
         type: fulfillmentType,
         state: 'PROPOSED',
@@ -215,7 +228,7 @@ export async function POST(request: NextRequest) {
             emailAddress: user.email,
           },
           pickupAt: scheduledAt || new Date(Date.now() + 20 * 60 * 1000).toISOString(),
-          note: notes || 'Online order',
+          note: fulfillmentNote,
         };
       } else {
         fulfillment.deliveryDetails = {
@@ -229,13 +242,24 @@ export async function POST(request: NextRequest) {
               postalCode: deliveryAddress.zip,
             } : undefined,
           },
-          note: notes || 'Online delivery order',
+          note: fulfillmentNote,
         };
       }
+
+      // Add website branding as first line item on receipt
+      squareOrderItems.unshift({
+        name: '--- www.gotopdonuts.com Online Order ---',
+        quantity: '1',
+        basePriceMoney: {
+          amount: BigInt(0),
+          currency: 'USD' as const,
+        },
+      })
 
       const { order: squareOrder } = await square.orders.create({
         order: {
           locationId,
+          referenceId: 'gotopdonuts.com',
           lineItems: squareOrderItems,
           taxes: [{
             name: 'Sales Tax',
