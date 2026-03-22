@@ -12,12 +12,38 @@ declare global {
 
 interface Payments {
   card: () => Promise<Card>;
+  applePay: (paymentRequest: PaymentRequest) => Promise<DigitalWallet>;
+  googlePay: (paymentRequest: PaymentRequest) => Promise<DigitalWallet>;
+  paymentRequest: (config: PaymentRequestConfig) => PaymentRequest;
+}
+
+interface PaymentRequestConfig {
+  countryCode: string;
+  currencyCode: string;
+  total: { amount: string; label: string };
+}
+
+interface PaymentRequest {
+  update: (config: { total: { amount: string; label: string } }) => void;
 }
 
 interface Card {
   attach: (selector: string) => Promise<void>;
-  tokenize: () => Promise<{ status: string; token: string; errors?: { message: string }[] }>;
+  tokenize: () => Promise<TokenResult>;
   destroy: () => void;
+}
+
+interface DigitalWallet {
+  attach: (selector: string) => Promise<void>;
+  tokenize: () => Promise<TokenResult>;
+  destroy: () => void;
+  addEventListener: (event: string, handler: (e: unknown) => void) => void;
+}
+
+interface TokenResult {
+  status: string;
+  token: string;
+  errors?: { message: string }[];
 }
 
 interface SquarePaymentFormProps {
@@ -29,8 +55,22 @@ interface SquarePaymentFormProps {
 
 export default function SquarePaymentForm({ onTokenize, onError, loading, total }: SquarePaymentFormProps) {
   const cardRef = useRef<Card | null>(null);
+  const applePayRef = useRef<DigitalWallet | null>(null);
+  const googlePayRef = useRef<DigitalWallet | null>(null);
+  const paymentRequestRef = useRef<PaymentRequest | null>(null);
   const initRef = useRef(false);
   const [ready, setReady] = useState(false);
+  const [applePayReady, setApplePayReady] = useState(false);
+  const [googlePayReady, setGooglePayReady] = useState(false);
+
+  // Update payment request amount when total changes
+  useEffect(() => {
+    if (paymentRequestRef.current) {
+      paymentRequestRef.current.update({
+        total: { amount: total.toFixed(2), label: 'GoTop Donuts' },
+      });
+    }
+  }, [total]);
 
   useEffect(() => {
     if (initRef.current) return;
@@ -47,22 +87,50 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
 
       try {
         const payments = await window.Square.payments(appId, locationId);
+
+        // Initialize card payment
         const card = await payments.card();
         await card.attach('#card-container');
         cardRef.current = card;
         setReady(true);
+
+        // Create payment request for Apple Pay / Google Pay
+        const paymentRequest = payments.paymentRequest({
+          countryCode: 'US',
+          currencyCode: 'USD',
+          total: { amount: total.toFixed(2), label: 'GoTop Donuts' },
+        });
+        paymentRequestRef.current = paymentRequest;
+
+        // Initialize Apple Pay
+        try {
+          const applePay = await payments.applePay(paymentRequest);
+          await applePay.attach('#apple-pay-container');
+          setApplePayReady(true);
+          applePayRef.current = applePay;
+        } catch {
+          // Apple Pay not available (non-Safari or not configured)
+        }
+
+        // Initialize Google Pay
+        try {
+          const googlePay = await payments.googlePay(paymentRequest);
+          await googlePay.attach('#google-pay-container');
+          setGooglePayReady(true);
+          googlePayRef.current = googlePay;
+        } catch {
+          // Google Pay not available
+        }
       } catch (e) {
         onError('Failed to initialize payment form');
       }
     }
 
-    // Check if SDK already loaded
     if (window.Square) {
       initSquare();
       return;
     }
 
-    // Check if script already exists
     if (document.querySelector('script[src*="square.js"]')) {
       const check = setInterval(() => {
         if (window.Square) {
@@ -100,6 +168,24 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
 
   return (
     <div className="space-y-4">
+      {/* Apple Pay / Google Pay buttons */}
+      {(applePayReady || googlePayReady) && (
+        <div className="space-y-3">
+          {applePayReady && (
+            <div id="apple-pay-container" className="min-h-[48px]" />
+          )}
+          {googlePayReady && (
+            <div id="google-pay-container" className="min-h-[48px]" />
+          )}
+          <div className="flex items-center gap-3 text-gray-400 text-sm">
+            <div className="flex-1 border-t border-gray-200" />
+            <span>or pay with card</span>
+            <div className="flex-1 border-t border-gray-200" />
+          </div>
+        </div>
+      )}
+
+      {/* Card payment */}
       <div id="card-container" className="min-h-[90px]" />
       <button
         onClick={handlePay}
