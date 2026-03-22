@@ -55,6 +55,75 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case 'order.fulfillment.updated': {
+        const orderId = body.data?.object?.order_fulfillment_updated?.order_id;
+        const fulfillmentUpdate = body.data?.object?.order_fulfillment_updated?.fulfillment_update?.[0];
+        const newState = fulfillmentUpdate?.new_state;
+        const oldState = fulfillmentUpdate?.old_state;
+
+        logPayload = { squareOrderId: orderId, oldState, newState };
+
+        if (orderId && newState) {
+          // Map Square fulfillment states to our order statuses
+          const stateMap: Record<string, string> = {
+            'PROPOSED': 'confirmed',
+            'RESERVED': 'preparing',
+            'PREPARED': 'ready_for_pickup',
+            'COMPLETED': 'picked_up',
+            'CANCELED': 'cancelled',
+          };
+
+          const newStatus = stateMap[newState];
+          if (newStatus) {
+            const { data, error } = await service.from('orders')
+              .update({ status: newStatus, updated_at: new Date().toISOString() })
+              .eq('square_order_id', orderId)
+              .select('id');
+
+            matchedOrderId = data?.[0]?.id || null;
+            logPayload.mappedStatus = newStatus;
+            logPayload.matched = data?.length ?? 0;
+            logPayload.dbError = error?.message || null;
+          }
+        }
+        break;
+      }
+
+      case 'order.updated': {
+        // Handle direct order state changes from POS
+        const order = body.data?.object?.order;
+        const sqOrderId = order?.id;
+        const sqState = order?.state;
+        const fulfillments = order?.fulfillments;
+        const fulfillmentState = fulfillments?.[0]?.state;
+
+        logPayload = { squareOrderId: sqOrderId, orderState: sqState, fulfillmentState };
+
+        if (sqOrderId && fulfillmentState) {
+          const stateMap: Record<string, string> = {
+            'PROPOSED': 'confirmed',
+            'RESERVED': 'preparing',
+            'PREPARED': 'ready_for_pickup',
+            'COMPLETED': 'picked_up',
+            'CANCELED': 'cancelled',
+          };
+
+          const newStatus = stateMap[fulfillmentState];
+          if (newStatus) {
+            const { data, error } = await service.from('orders')
+              .update({ status: newStatus, updated_at: new Date().toISOString() })
+              .eq('square_order_id', sqOrderId)
+              .select('id');
+
+            matchedOrderId = data?.[0]?.id || null;
+            logPayload.mappedStatus = newStatus;
+            logPayload.matched = data?.length ?? 0;
+            logPayload.dbError = error?.message || null;
+          }
+        }
+        break;
+      }
+
       default:
         logPayload = { note: 'unhandled event type' };
         break;
