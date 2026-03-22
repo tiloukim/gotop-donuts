@@ -18,6 +18,7 @@ export default function AdminOrdersPage() {
   const [updating, setUpdating] = useState<string | null>(null)
   const [refundModal, setRefundModal] = useState<{ orderId: string; orderNumber: number } | null>(null)
   const [refundReason, setRefundReason] = useState('Out of stock items')
+  const [customReason, setCustomReason] = useState('')
   const [showCancelled, setShowCancelled] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
@@ -194,7 +195,7 @@ export default function AdminOrdersPage() {
       const res = await fetch('/api/admin/orders/refund', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: refundModal.orderId, reason: refundReason }),
+        body: JSON.stringify({ order_id: refundModal.orderId, reason: refundReason === 'Other' ? (customReason || 'Other') : refundReason }),
       })
       const result = await res.json()
       if (res.ok) {
@@ -581,7 +582,8 @@ export default function AdminOrdersPage() {
               <input
                 type="text"
                 placeholder="Enter reason..."
-                onChange={(e) => setRefundReason(e.target.value || 'Other')}
+                value={customReason}
+                onChange={(e) => setCustomReason(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg mb-2 text-sm"
                 autoFocus
               />
@@ -589,7 +591,7 @@ export default function AdminOrdersPage() {
 
             <div className="flex gap-3 mt-4">
               <button
-                onClick={() => { setRefundModal(null); setRefundReason('Out of stock items') }}
+                onClick={() => { setRefundModal(null); setRefundReason('Out of stock items'); setCustomReason('') }}
                 className="flex-1 py-2 rounded-lg border border-gray-300 text-sm font-medium hover:bg-gray-50"
               >
                 Go Back
