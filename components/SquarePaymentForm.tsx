@@ -1,49 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 declare global {
   interface Window {
     Square: {
-      payments: (appId: string, locationId: string) => Promise<Payments>;
+      payments: (appId: string, locationId: string) => Promise<any>;
     };
   }
-}
-
-interface Payments {
-  card: () => Promise<Card>;
-  applePay: (paymentRequest: PaymentRequest) => Promise<DigitalWallet>;
-  googlePay: (paymentRequest: PaymentRequest) => Promise<DigitalWallet>;
-  paymentRequest: (config: PaymentRequestConfig) => PaymentRequest;
-}
-
-interface PaymentRequestConfig {
-  countryCode: string;
-  currencyCode: string;
-  total: { amount: string; label: string };
-}
-
-interface PaymentRequest {
-  update: (config: { total: { amount: string; label: string } }) => void;
-}
-
-interface Card {
-  attach: (selector: string) => Promise<void>;
-  tokenize: () => Promise<TokenResult>;
-  destroy: () => void;
-}
-
-interface DigitalWallet {
-  attach: (selector: string) => Promise<void>;
-  tokenize: () => Promise<TokenResult>;
-  destroy: () => void;
-  addEventListener: (event: string, handler: (e: unknown) => void) => void;
-}
-
-interface TokenResult {
-  status: string;
-  token: string;
-  errors?: { message: string }[];
 }
 
 interface SquarePaymentFormProps {
@@ -54,23 +18,44 @@ interface SquarePaymentFormProps {
 }
 
 export default function SquarePaymentForm({ onTokenize, onError, loading, total }: SquarePaymentFormProps) {
-  const cardRef = useRef<Card | null>(null);
-  const applePayRef = useRef<DigitalWallet | null>(null);
-  const googlePayRef = useRef<DigitalWallet | null>(null);
-  const paymentRequestRef = useRef<PaymentRequest | null>(null);
+  const cardRef = useRef<any>(null);
+  const paymentRequestRef = useRef<any>(null);
+  const onTokenizeRef = useRef(onTokenize);
+  const onErrorRef = useRef(onError);
   const initRef = useRef(false);
   const [ready, setReady] = useState(false);
   const [applePayReady, setApplePayReady] = useState(false);
   const [googlePayReady, setGooglePayReady] = useState(false);
 
+  // Keep refs updated
+  onTokenizeRef.current = onTokenize;
+  onErrorRef.current = onError;
+
   // Update payment request amount when total changes
   useEffect(() => {
-    if (paymentRequestRef.current) {
-      paymentRequestRef.current.update({
-        total: { amount: total.toFixed(2), label: 'GoTop Donuts' },
-      });
+    if (paymentRequestRef.current && total > 0) {
+      try {
+        paymentRequestRef.current.update({
+          total: { amount: total.toFixed(2), label: 'GoTop Donuts' },
+        });
+      } catch {
+        // ignore update errors
+      }
     }
   }, [total]);
+
+  const handleDigitalWalletToken = useCallback(async (wallet: any) => {
+    try {
+      const result = await wallet.tokenize();
+      if (result.status === 'OK') {
+        onTokenizeRef.current(result.token);
+      } else {
+        onErrorRef.current(result.errors?.[0]?.message || 'Payment failed');
+      }
+    } catch {
+      onErrorRef.current('Payment processing failed');
+    }
+  }, []);
 
   useEffect(() => {
     if (initRef.current) return;
@@ -81,7 +66,7 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
 
     async function initSquare() {
       if (!window.Square) {
-        onError('Square SDK not loaded');
+        onErrorRef.current('Square SDK not loaded');
         return;
       }
 
@@ -94,11 +79,14 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
         cardRef.current = card;
         setReady(true);
 
+        // Use a minimum amount for initialization, will be updated via useEffect
+        const initAmount = total > 0 ? total.toFixed(2) : '1.00';
+
         // Create payment request for Apple Pay / Google Pay
         const paymentRequest = payments.paymentRequest({
           countryCode: 'US',
           currencyCode: 'USD',
-          total: { amount: total.toFixed(2), label: 'GoTop Donuts' },
+          total: { amount: initAmount, label: 'GoTop Donuts' },
         });
         paymentRequestRef.current = paymentRequest;
 
@@ -107,10 +95,9 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
           const applePay = await payments.applePay(paymentRequest);
           await applePay.attach('#apple-pay-container');
           setApplePayReady(true);
-          applePayRef.current = applePay;
-          console.log('[Payment] Apple Pay initialized successfully');
-        } catch (appleErr) {
-          console.log('[Payment] Apple Pay not available:', appleErr);
+          console.log('[Payment] Apple Pay ready');
+        } catch (e: any) {
+          console.log('[Payment] Apple Pay not available:', e?.message || e);
         }
 
         // Initialize Google Pay
@@ -118,13 +105,12 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
           const googlePay = await payments.googlePay(paymentRequest);
           await googlePay.attach('#google-pay-container');
           setGooglePayReady(true);
-          googlePayRef.current = googlePay;
-          console.log('[Payment] Google Pay initialized successfully');
-        } catch (googleErr) {
-          console.log('[Payment] Google Pay not available:', googleErr);
+          console.log('[Payment] Google Pay ready');
+        } catch (e: any) {
+          console.log('[Payment] Google Pay not available:', e?.message || e);
         }
       } catch (e) {
-        onError('Failed to initialize payment form');
+        onErrorRef.current('Failed to initialize payment form');
       }
     }
 
@@ -149,9 +135,9 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
       ? 'https://web.squarecdn.com/v1/square.js'
       : 'https://sandbox.web.squarecdn.com/v1/square.js';
     script.onload = initSquare;
-    script.onerror = () => onError('Failed to load payment SDK');
+    script.onerror = () => onErrorRef.current('Failed to load payment SDK');
     document.head.appendChild(script);
-  }, []);
+  }, [total, handleDigitalWalletToken]);
 
   async function handlePay() {
     if (!cardRef.current) return;
@@ -170,7 +156,7 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
 
   return (
     <div className="space-y-4">
-      {/* Apple Pay / Google Pay buttons — containers must exist in DOM for SDK to attach */}
+      {/* Apple Pay / Google Pay — containers must exist in DOM for SDK to attach */}
       <div id="apple-pay-container" className={applePayReady ? 'min-h-[48px]' : 'hidden'} />
       <div id="google-pay-container" className={googlePayReady ? 'min-h-[48px]' : 'hidden'} />
       {(applePayReady || googlePayReady) && (
