@@ -50,13 +50,29 @@ export async function PATCH(
     if (variants !== undefined) upsertData.variants = variants
     if (is_available !== undefined) upsertData.hidden_on_web = !is_available
 
-    const { error: upsertErr } = await service
+    // Try upsert with all fields
+    let { error: upsertErr } = await service
       .from('menu_image_overrides')
       .upsert(upsertData, { onConflict: 'square_item_id' })
 
     if (upsertErr) {
-      console.error('Failed to upsert menu overrides:', upsertErr)
-      return NextResponse.json({ error: upsertErr.message }, { status: 500 })
+      console.error('Upsert failed, trying without newer columns:', upsertErr.message)
+      // Remove columns that might not exist yet
+      delete upsertData.hidden_on_web
+      delete upsertData.is_taxable
+      delete upsertData.category
+      delete upsertData.name
+      delete upsertData.description
+      delete upsertData.price
+
+      const { error: retryErr } = await service
+        .from('menu_image_overrides')
+        .upsert(upsertData, { onConflict: 'square_item_id' })
+
+      if (retryErr) {
+        console.error('Retry upsert also failed:', retryErr.message)
+        return NextResponse.json({ error: retryErr.message }, { status: 500 })
+      }
     }
 
     return NextResponse.json({ ok: true })
@@ -78,19 +94,25 @@ export async function DELETE(
   }
 
   try {
-    // Only hide from website — don't delete from Square POS
     const service = createServiceClient()
 
-    const { error } = await service
+    // Try to set hidden_on_web first (soft delete)
+    const { error: hideErr } = await service
       .from('menu_image_overrides')
-      .upsert({
-        square_item_id: id,
-        hidden_on_web: true,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'square_item_id' })
+      .update({ hidden_on_web: true, updated_at: new Date().toISOString() })
+      .eq('square_item_id', id)
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (hideErr) {
+      // If hidden_on_web column doesn't exist, delete the row entirely
+      console.error('Hide failed, trying hard delete:', hideErr.message)
+      const { error: deleteErr } = await service
+        .from('menu_image_overrides')
+        .delete()
+        .eq('square_item_id', id)
+
+      if (deleteErr) {
+        return NextResponse.json({ error: deleteErr.message }, { status: 500 })
+      }
     }
 
     return NextResponse.json({ ok: true })

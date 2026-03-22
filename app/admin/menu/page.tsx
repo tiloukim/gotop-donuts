@@ -337,13 +337,15 @@ export default function AdminMenuPage() {
   async function handleDelete() {
     if (!deleteId) return
     setDeleting(true)
+    setError(null)
     try {
       const res = await fetch(`/api/admin/menu/${deleteId}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || `Delete failed (${res.status})`)
       setDeleteId(null)
       await fetchItems()
-    } catch {
-      setError('Failed to delete item')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete item')
     } finally {
       setDeleting(false)
     }
@@ -351,16 +353,18 @@ export default function AdminMenuPage() {
 
   async function toggleAvailability(item: AdminMenuItem) {
     setTogglingId(item.id)
+    setError(null)
     try {
       const res = await fetch(`/api/admin/menu/${item.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_available: !item.is_available }),
       })
-      if (!res.ok) throw new Error('Failed to toggle')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || `Toggle failed (${res.status})`)
       await fetchItems()
-    } catch {
-      setError('Failed to update availability')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update availability')
     } finally {
       setTogglingId(null)
     }
