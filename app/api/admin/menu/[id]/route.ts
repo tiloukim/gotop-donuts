@@ -1,7 +1,24 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServerClient } from '@supabase/ssr'
 import { createServiceClient } from '@/lib/supabase/service'
 import { ADMIN_EMAIL } from '@/lib/constants'
 import { NextRequest, NextResponse } from 'next/server'
+
+async function verifyAdmin(request: NextRequest) {
+  // Create client directly from request cookies to avoid stale cookie issues
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return request.cookies.getAll() },
+        setAll() {},
+      },
+    }
+  )
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user?.email === ADMIN_EMAIL) return user
+  return null
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -9,9 +26,8 @@ export async function PATCH(
 ) {
   const { id } = await params
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || user.email !== ADMIN_EMAIL) {
+  const user = await verifyAdmin(request)
+  if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -56,9 +72,8 @@ export async function DELETE(
 ) {
   const { id } = await params
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || user.email !== ADMIN_EMAIL) {
+  const user = await verifyAdmin(request)
+  if (!user) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
