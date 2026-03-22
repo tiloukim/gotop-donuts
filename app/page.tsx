@@ -1,20 +1,16 @@
-import Image from 'next/image';
 import Link from 'next/link';
 
 export default function HomePage() {
   return (
     <>
       {/* Hero with Shop Image */}
-      <section className="relative bg-dark overflow-hidden">
-        <div className="absolute inset-0">
-          <Image
-            src="/TopDonutShop.png"
-            alt="GoTop Donuts Shop in Tyler, TX"
-            fill
-            className="object-cover opacity-50"
-            priority
-          />
-        </div>
+      <section className="relative overflow-hidden">
+        <img
+          src="/TopDonutShop.png"
+          alt="GoTop Donuts Shop in Tyler, TX"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-black/60" />
         <div className="relative max-w-7xl mx-auto px-4 py-24 md:py-36 text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
             Fresh Donuts,{' '}
