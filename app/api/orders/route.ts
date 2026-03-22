@@ -246,16 +246,6 @@ export async function POST(request: NextRequest) {
         };
       }
 
-      // Add website branding as first line item on receipt
-      squareOrderItems.unshift({
-        name: '--- www.gotopdonuts.com Online Order ---',
-        quantity: '1',
-        basePriceMoney: {
-          amount: BigInt(0),
-          currency: 'USD' as const,
-        },
-      })
-
       const { order: squareOrder } = await square.orders.create({
         order: {
           locationId,
