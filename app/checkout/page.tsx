@@ -377,26 +377,56 @@ export default function CheckoutPage() {
       </section>
 
       {/* Rewards */}
-      {profile && profile.reward_points >= REDEEM_POINTS && (
+      {profile && (
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-3">Rewards</h2>
-          <div className="bg-amber-50 p-4 rounded-lg flex items-center justify-between">
-            <div>
-              <p className="font-medium">You have {profile.reward_points} points</p>
-              <p className="text-sm text-gray-600">
-                Redeem {REDEEM_POINTS} points for ${REDEEM_DISCOUNT} off
+          <div className="bg-amber-50 p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">⭐ You have {profile.reward_points} points</p>
+                {profile.reward_points >= REDEEM_POINTS ? (
+                  <p className="text-sm text-gray-600">
+                    Redeem {REDEEM_POINTS} points for ${REDEEM_DISCOUNT} off
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-600">
+                    {REDEEM_POINTS - profile.reward_points} more points to unlock ${REDEEM_DISCOUNT} off
+                  </p>
+                )}
+              </div>
+              {profile.reward_points >= REDEEM_POINTS && (
+                <button
+                  onClick={handleRedeemToggle}
+                  className={`px-4 py-2 rounded-lg font-medium ${
+                    cart.redeemPoints > 0
+                      ? 'bg-red-100 text-red-600'
+                      : 'bg-accent text-white'
+                  }`}
+                >
+                  {cart.redeemPoints > 0 ? 'Remove' : 'Redeem'}
+                </button>
+              )}
+            </div>
+            {/* Progress bar */}
+            {profile.reward_points < REDEEM_POINTS && (
+              <div className="mt-3">
+                <div className="w-full bg-amber-100 rounded-full h-2">
+                  <div
+                    className="bg-accent h-2 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, (profile.reward_points / REDEEM_POINTS) * 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Earn 1 point per $1 spent
+                </p>
+              </div>
+            )}
+            {/* Points earned on this order */}
+            <div className="mt-2 pt-2 border-t border-amber-200">
+              <p className="text-sm text-accent font-medium">
+                +{Math.floor(cart.getTotal())} points earned on this order
               </p>
             </div>
-            <button
-              onClick={handleRedeemToggle}
-              className={`px-4 py-2 rounded-lg font-medium ${
-                cart.redeemPoints > 0
-                  ? 'bg-red-100 text-red-600'
-                  : 'bg-accent text-white'
-              }`}
-            >
-              {cart.redeemPoints > 0 ? 'Remove' : 'Redeem'}
-            </button>
           </div>
         </section>
       )}
