@@ -19,6 +19,7 @@ interface SquarePaymentFormProps {
 
 export default function SquarePaymentForm({ onTokenize, onError, loading, total }: SquarePaymentFormProps) {
   const cardRef = useRef<any>(null);
+  const applePayButtonRef = useRef<any>(null);
   const paymentRequestRef = useRef<any>(null);
   const onTokenizeRef = useRef(onTokenize);
   const onErrorRef = useRef(onError);
@@ -93,11 +94,17 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
 
         // Initialize Apple Pay
         try {
-          const applePay = await payments.applePay(paymentRequest);
-          await applePay.attach('#apple-pay-container');
-          setApplePayReady(true);
-          setDebugInfo(prev => prev + ' | Apple Pay: ready');
-          console.log('[Payment] Apple Pay ready');
+          const applePayResult = await payments.applePay(paymentRequest);
+          if (applePayResult) {
+            // Square SDK v2: applePay may return an object with attach or be the button itself
+            if (typeof applePayResult.attach === 'function') {
+              await applePayResult.attach('#apple-pay-container');
+            }
+            applePayButtonRef.current = applePayResult;
+            setApplePayReady(true);
+            setDebugInfo(prev => prev + ' | Apple Pay: ready');
+            console.log('[Payment] Apple Pay ready');
+          }
         } catch (e: any) {
           setDebugInfo(prev => prev + ' | Apple Pay error: ' + (e?.message || String(e)));
           console.log('[Payment] Apple Pay not available:', e?.message || e);
@@ -167,7 +174,30 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
       )}
 
       {/* Apple Pay / Google Pay — containers must exist in DOM for SDK to attach */}
-      <div id="apple-pay-container" className={applePayReady ? 'min-h-[48px]' : 'hidden'} />
+      {applePayReady && (
+        <button
+          id="apple-pay-container"
+          onClick={async () => {
+            if (!applePayButtonRef.current) return;
+            try {
+              const result = await applePayButtonRef.current.tokenize();
+              if (result.status === 'OK') {
+                onTokenizeRef.current(result.token);
+              } else {
+                onErrorRef.current(result.errors?.[0]?.message || 'Apple Pay failed');
+              }
+            } catch (e: any) {
+              onErrorRef.current(e?.message || 'Apple Pay failed');
+            }
+          }}
+          disabled={loading}
+          className="w-full py-3 rounded-lg font-semibold text-white disabled:opacity-50"
+          style={{ background: '#000', minHeight: 48, fontSize: 16, WebkitAppearance: 'none' }}
+        >
+           Pay with Apple Pay
+        </button>
+      )}
+      {!applePayReady && <div id="apple-pay-container" className="hidden" />}
       <div id="google-pay-container" className={googlePayReady ? 'min-h-[48px]' : 'hidden'} />
       {(applePayReady || googlePayReady) && (
         <div className="flex items-center gap-3 text-gray-400 text-sm">
