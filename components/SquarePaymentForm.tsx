@@ -108,8 +108,9 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
           await applePay.attach('#apple-pay-container');
           setApplePayReady(true);
           applePayRef.current = applePay;
-        } catch {
-          // Apple Pay not available (non-Safari or not configured)
+          console.log('[Payment] Apple Pay initialized successfully');
+        } catch (appleErr) {
+          console.log('[Payment] Apple Pay not available:', appleErr);
         }
 
         // Initialize Google Pay
@@ -118,8 +119,9 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
           await googlePay.attach('#google-pay-container');
           setGooglePayReady(true);
           googlePayRef.current = googlePay;
-        } catch {
-          // Google Pay not available
+          console.log('[Payment] Google Pay initialized successfully');
+        } catch (googleErr) {
+          console.log('[Payment] Google Pay not available:', googleErr);
         }
       } catch (e) {
         onError('Failed to initialize payment form');
@@ -168,20 +170,14 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
 
   return (
     <div className="space-y-4">
-      {/* Apple Pay / Google Pay buttons */}
+      {/* Apple Pay / Google Pay buttons — containers must exist in DOM for SDK to attach */}
+      <div id="apple-pay-container" className={applePayReady ? 'min-h-[48px]' : 'hidden'} />
+      <div id="google-pay-container" className={googlePayReady ? 'min-h-[48px]' : 'hidden'} />
       {(applePayReady || googlePayReady) && (
-        <div className="space-y-3">
-          {applePayReady && (
-            <div id="apple-pay-container" className="min-h-[48px]" />
-          )}
-          {googlePayReady && (
-            <div id="google-pay-container" className="min-h-[48px]" />
-          )}
-          <div className="flex items-center gap-3 text-gray-400 text-sm">
-            <div className="flex-1 border-t border-gray-200" />
-            <span>or pay with card</span>
-            <div className="flex-1 border-t border-gray-200" />
-          </div>
+        <div className="flex items-center gap-3 text-gray-400 text-sm">
+          <div className="flex-1 border-t border-gray-200" />
+          <span>or pay with card</span>
+          <div className="flex-1 border-t border-gray-200" />
         </div>
       )}
 
