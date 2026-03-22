@@ -192,7 +192,7 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
         </button>
       )}
       {!applePayReady && <div id="apple-pay-container" className="hidden" />}
-      <div id="google-pay-container" className={googlePayReady ? 'min-h-[48px]' : 'hidden'} />
+      <div id="google-pay-container" className={googlePayReady ? '' : 'hidden'} style={googlePayReady ? { minHeight: 48, position: 'relative', zIndex: 1 } : undefined} />
       {(applePayReady || googlePayReady) && (
         <div className="flex items-center gap-3 text-gray-400 text-sm">
           <div className="flex-1 border-t border-gray-200" />
