@@ -26,6 +26,7 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
   const [ready, setReady] = useState(false);
   const [applePayReady, setApplePayReady] = useState(false);
   const [googlePayReady, setGooglePayReady] = useState(false);
+  const [debugInfo, setDebugInfo] = useState('');
 
   // Keep refs updated
   onTokenizeRef.current = onTokenize;
@@ -95,8 +96,10 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
           const applePay = await payments.applePay(paymentRequest);
           await applePay.attach('#apple-pay-container');
           setApplePayReady(true);
+          setDebugInfo(prev => prev + ' | Apple Pay: ready');
           console.log('[Payment] Apple Pay ready');
         } catch (e: any) {
+          setDebugInfo(prev => prev + ' | Apple Pay error: ' + (e?.message || String(e)));
           console.log('[Payment] Apple Pay not available:', e?.message || e);
         }
 
@@ -105,8 +108,10 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
           const googlePay = await payments.googlePay(paymentRequest);
           await googlePay.attach('#google-pay-container');
           setGooglePayReady(true);
+          setDebugInfo(prev => prev + ' | Google Pay: ready');
           console.log('[Payment] Google Pay ready');
         } catch (e: any) {
+          setDebugInfo(prev => prev + ' | Google Pay error: ' + (e?.message || String(e)));
           console.log('[Payment] Google Pay not available:', e?.message || e);
         }
       } catch (e) {
@@ -156,6 +161,11 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
 
   return (
     <div className="space-y-4">
+      {/* Debug info — remove after testing */}
+      {debugInfo && (
+        <p className="text-xs text-gray-400 bg-gray-50 p-2 rounded break-all">{debugInfo}</p>
+      )}
+
       {/* Apple Pay / Google Pay — containers must exist in DOM for SDK to attach */}
       <div id="apple-pay-container" className={applePayReady ? 'min-h-[48px]' : 'hidden'} />
       <div id="google-pay-container" className={googlePayReady ? 'min-h-[48px]' : 'hidden'} />
