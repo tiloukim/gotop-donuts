@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { getSquareClient } from '@/lib/square'
 import { ADMIN_EMAIL } from '@/lib/constants'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -24,20 +25,57 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    const items = (allItems ?? []).map((item, index) => ({
-      id: item.square_item_id,
-      variationId: '',
-      category: item.category || 'donuts',
-      name: item.name || 'Unknown',
-      description: item.description || '',
-      price: item.price || 0,
-      image_url: item.image_url || null,
-      is_available: !(item.hidden_on_web ?? false),
-      is_taxable: item.is_taxable ?? true,
-      sort_order: item.sort_order ?? index,
-      created_at: item.updated_at || new Date().toISOString(),
-      variants: item.variants || null,
-    }))
+    // For items missing name/price, fetch from Square to backfill
+    const needsSquareData = (allItems ?? []).filter(
+      item => !item.square_item_id.startsWith('web-') && (!item.name || !item.price)
+    )
+    let squareMap = new Map<string, { name: string; description: string; price: number }>()
+
+    if (needsSquareData.length > 0) {
+      try {
+        const square = getSquareClient()
+        const { objects } = await square.catalog.batchGet({
+          objectIds: needsSquareData.map(i => i.square_item_id),
+          includeRelatedObjects: false,
+        })
+        if (objects) {
+          for (const obj of objects) {
+            if (obj.type === 'ITEM' && obj.itemData && obj.id) {
+              const variation = obj.itemData.variations?.[0]
+              const priceMoney = variation?.type === 'ITEM_VARIATION'
+                ? variation.itemVariationData?.priceMoney
+                : undefined
+              const priceCents = priceMoney?.amount ? Number(priceMoney.amount) : 0
+              squareMap.set(obj.id, {
+                name: obj.itemData.name || 'Unknown',
+                description: obj.itemData.description || '',
+                price: priceCents / 100,
+              })
+            }
+          }
+        }
+      } catch {
+        // Square fetch failed — show what we have
+      }
+    }
+
+    const items = (allItems ?? []).map((item, index) => {
+      const sq = squareMap.get(item.square_item_id)
+      return {
+        id: item.square_item_id,
+        variationId: '',
+        category: item.category || 'donuts',
+        name: item.name || sq?.name || 'Unknown',
+        description: item.description ?? sq?.description ?? '',
+        price: item.price ?? sq?.price ?? 0,
+        image_url: item.image_url || null,
+        is_available: !(item.hidden_on_web ?? false),
+        is_taxable: item.is_taxable ?? true,
+        sort_order: item.sort_order ?? index,
+        created_at: item.updated_at || new Date().toISOString(),
+        variants: item.variants || null,
+      }
+    })
 
     return NextResponse.json({ items })
   } catch (err) {
