@@ -1,13 +1,18 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const service = createServiceClient();
 
+    // Log ALL incoming webhooks for debugging
+    console.log('[WEBHOOK] Received:', body.type, JSON.stringify(body.data?.object || {}).slice(0, 500))
+
     let matchedOrderId: string | null = null;
-    let logPayload: Record<string, unknown> = {};
+    let logPayload: Record<string, unknown> = { raw_type: body.type };
 
     switch (body.type) {
       case 'payment.completed':
@@ -129,13 +134,20 @@ export async function POST(request: NextRequest) {
         break;
     }
 
+    // Save full raw payload for debugging
+    logPayload.raw_data = body.data?.object || null
+
     // Try to save log (table may not exist yet)
-    await service.from('webhook_logs').insert({
-      event_type: body.type || 'unknown',
-      event_id: body.event_id || null,
-      matched_order_id: matchedOrderId,
-      payload: logPayload,
-    });
+    try {
+      await service.from('webhook_logs').insert({
+        event_type: body.type || 'unknown',
+        event_id: body.event_id || null,
+        matched_order_id: matchedOrderId,
+        payload: logPayload,
+      });
+    } catch {
+      // Table may not exist
+    }
 
     return NextResponse.json({ received: true });
   } catch (e) {
