@@ -24,7 +24,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.gotopdonuts.com"),
+  metadataBase: new URL("https://gotopdonuts.com"),
   icons: {
     icon: '/favicon.ico',
     apple: '/icon-192.png',
