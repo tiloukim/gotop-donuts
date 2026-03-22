@@ -26,6 +26,11 @@ export const POINTS_PER_DOLLAR = 1;
 export const REDEEM_POINTS = 100;
 export const REDEEM_DISCOUNT = 5;
 
+// Gift Cards
+export const GIFT_CARD_AMOUNTS = [10, 25, 50, 100];
+export const GIFT_CARD_MIN_CUSTOM = 5;
+export const GIFT_CARD_MAX_CUSTOM = 500;
+
 // Store hours
 export const STORE_HOURS = {
   open: '4:30 AM',

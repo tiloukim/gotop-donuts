@@ -50,6 +50,8 @@ export async function POST(request: NextRequest) {
     scheduledAt,
     sourceId,
     notes,
+    giftCardCode,
+    giftCardAmount,
   } = body as {
     items: CartItem[];
     orderType: OrderType;
@@ -61,6 +63,8 @@ export async function POST(request: NextRequest) {
     scheduledAt: string | null;
     sourceId: string;
     notes: string;
+    giftCardCode?: string;
+    giftCardAmount?: number;
   };
 
   if (!items?.length || !sourceId) {
@@ -386,6 +390,38 @@ export async function POST(request: NextRequest) {
           description: `Earned ${pointsEarned} points on order #${order.order_number}`,
         },
       ]);
+    }
+
+    // Deduct gift card balance if used
+    if (giftCardCode && giftCardAmount && giftCardAmount > 0) {
+      try {
+        const { data: card } = await service
+          .from('gift_cards')
+          .select('id, balance')
+          .eq('code', giftCardCode.toUpperCase().trim())
+          .single();
+
+        if (card && card.balance >= giftCardAmount) {
+          const newBalance = Math.round((card.balance - giftCardAmount) * 100) / 100;
+          await service
+            .from('gift_cards')
+            .update({
+              balance: newBalance,
+              ...(newBalance <= 0 && { status: 'redeemed' }),
+            })
+            .eq('id', card.id);
+
+          await service.from('gift_card_transactions').insert({
+            gift_card_id: card.id,
+            order_id: order.id,
+            type: 'redemption',
+            amount: giftCardAmount,
+            balance_after: newBalance,
+          });
+        }
+      } catch (gcErr) {
+        console.error('Gift card deduction error:', gcErr);
+      }
     }
 
     // Send notifications (non-blocking)

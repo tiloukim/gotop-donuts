@@ -111,6 +111,30 @@ export interface RewardTransaction {
   created_at: string;
 }
 
+export interface GiftCard {
+  id: string;
+  code: string;
+  initial_amount: number;
+  balance: number;
+  purchaser_user_id: string | null;
+  recipient_name: string | null;
+  recipient_email: string | null;
+  message: string | null;
+  square_payment_id: string;
+  status: 'active' | 'redeemed' | 'disabled';
+  created_at: string;
+}
+
+export interface GiftCardTransaction {
+  id: string;
+  gift_card_id: string;
+  order_id: string | null;
+  type: 'purchase' | 'redemption';
+  amount: number;
+  balance_after: number;
+  created_at: string;
+}
+
 export interface AdminMenuItem extends MenuItem {
   variationId: string;
   is_taxable: boolean;

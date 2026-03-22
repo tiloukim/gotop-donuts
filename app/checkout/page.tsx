@@ -19,6 +19,13 @@ export default function CheckoutPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Gift card state
+  const [giftCardCode, setGiftCardCode] = useState('');
+  const [giftCardBalance, setGiftCardBalance] = useState(0);
+  const [giftCardApplied, setGiftCardApplied] = useState(false);
+  const [giftCardError, setGiftCardError] = useState('');
+  const [checkingGiftCard, setCheckingGiftCard] = useState(false);
+
   // Delivery address fields
   const [street, setStreet] = useState('');
   const [city, setCity] = useState('');
@@ -145,6 +152,41 @@ export default function CheckoutPage() {
     }
   }
 
+  async function applyGiftCard() {
+    if (!giftCardCode.trim()) return;
+    setCheckingGiftCard(true);
+    setGiftCardError('');
+    try {
+      const res = await fetch('/api/gift-cards/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: giftCardCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setGiftCardError(data.error || 'Invalid gift card');
+      } else {
+        setGiftCardBalance(data.balance);
+        setGiftCardApplied(true);
+      }
+    } catch {
+      setGiftCardError('Failed to check gift card');
+    }
+    setCheckingGiftCard(false);
+  }
+
+  function removeGiftCard() {
+    setGiftCardApplied(false);
+    setGiftCardBalance(0);
+    setGiftCardCode('');
+    setGiftCardError('');
+  }
+
+  // Calculate how much the gift card covers
+  const orderTotal = cart.getTotal();
+  const giftCardDiscount = giftCardApplied ? Math.min(giftCardBalance, orderTotal) : 0;
+  const chargeAmount = Math.max(0, orderTotal - giftCardDiscount);
+
   async function handleTokenize(sourceId: string) {
     setLoading(true);
     setError('');
@@ -164,6 +206,10 @@ export default function CheckoutPage() {
           scheduledAt: getScheduledAt(),
           sourceId,
           notes,
+          ...(giftCardApplied && giftCardDiscount > 0 && {
+            giftCardCode: giftCardCode.trim(),
+            giftCardAmount: giftCardDiscount,
+          }),
         }),
       });
 
@@ -434,6 +480,51 @@ export default function CheckoutPage() {
         </section>
       )}
 
+      {/* Gift Card */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold mb-3">Gift Card</h2>
+        {giftCardApplied ? (
+          <div className="bg-green-50 p-4 rounded-lg flex items-center justify-between">
+            <div>
+              <p className="font-medium text-green-800">Gift card applied!</p>
+              <p className="text-sm text-green-600">
+                Code: {giftCardCode} — Balance: ${giftCardBalance.toFixed(2)}
+              </p>
+              <p className="text-sm text-green-700 font-semibold">
+                -${giftCardDiscount.toFixed(2)} applied to this order
+              </p>
+            </div>
+            <button
+              onClick={removeGiftCard}
+              className="px-4 py-2 rounded-lg font-medium bg-red-100 text-red-600"
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="GTOP-XXXX-XXXX"
+                value={giftCardCode}
+                onChange={(e) => setGiftCardCode(e.target.value.toUpperCase())}
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-mono tracking-wider"
+                maxLength={14}
+              />
+              <button
+                onClick={applyGiftCard}
+                disabled={checkingGiftCard || !giftCardCode.trim()}
+                className="bg-gray-800 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-700 disabled:opacity-50"
+              >
+                {checkingGiftCard ? '...' : 'Apply'}
+              </button>
+            </div>
+            {giftCardError && <p className="text-red-500 text-sm mt-2">{giftCardError}</p>}
+          </div>
+        )}
+      </section>
+
       {/* Order Summary */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold mb-3">Order Summary</h2>
@@ -471,9 +562,15 @@ export default function CheckoutPage() {
                 <span>${cart.tip.toFixed(2)}</span>
               </div>
             )}
+            {giftCardDiscount > 0 && (
+              <div className="flex justify-between text-sm text-green-600">
+                <span>Gift Card</span>
+                <span>-${giftCardDiscount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-bold text-lg pt-2 border-t">
               <span>Total</span>
-              <span>${cart.getTotal().toFixed(2)}</span>
+              <span>${chargeAmount.toFixed(2)}</span>
             </div>
           </div>
         </div>

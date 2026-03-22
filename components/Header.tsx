@@ -49,6 +49,9 @@ export default function Header() {
             <Link href="/menu" className="text-gray-700 hover:text-primary font-medium">
               Menu
             </Link>
+            <Link href="/gift-cards" className="text-gray-700 hover:text-primary font-medium">
+              Gift Cards
+            </Link>
             {user && (
               <>
                 <Link href="/orders" className="text-gray-700 hover:text-primary font-medium">
@@ -126,6 +129,7 @@ export default function Header() {
         {menuOpen && (
           <nav className="md:hidden border-t bg-white px-4 py-3 space-y-2">
             <Link href="/menu" className="block py-2 text-gray-700 font-medium" onClick={() => setMenuOpen(false)}>Menu</Link>
+            <Link href="/gift-cards" className="block py-2 text-gray-700 font-medium" onClick={() => setMenuOpen(false)}>Gift Cards</Link>
             {user && (
               <>
                 <Link href="/orders" className="block py-2 text-gray-700 font-medium" onClick={() => setMenuOpen(false)}>Orders</Link>
