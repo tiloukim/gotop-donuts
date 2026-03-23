@@ -43,6 +43,24 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Donut Gallery */}
+      <section className="bg-warm-gray py-12">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
+            {[7, 3, 11, 1, 9, 5, 12, 2, 10, 6, 13, 4, 8].map((n) => (
+              <div key={n} className="break-inside-avoid rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow">
+                <img
+                  src={`/donuts/${n}.${[9, 11, 12].includes(n) ? 'JPG' : 'jpg'}`}
+                  alt="Fresh donuts at Top Donuts"
+                  className="w-full h-auto object-cover"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
       <section className="max-w-7xl mx-auto px-4 py-16">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
