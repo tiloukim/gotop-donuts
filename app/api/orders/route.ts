@@ -336,7 +336,7 @@ export async function POST(request: NextRequest) {
     const paymentAmount = squareOrderTotal ?? BigInt(amountCents);
 
     // Build payment note with customer name (shows on receipt)
-    const paymentNote = `${displayName}${customerPhone ? ` (${customerPhone})` : ''} | ${orderType === 'pickup' ? 'Pickup' : 'Delivery'}`;
+    const paymentNote = `${displayName}${customerPhone ? ` (${customerPhone})` : ''} | *** ${orderType === 'pickup' ? 'PICKUP' : 'DELIVERY'} ***`;
 
     // 2. Create payment linked to the Square order
     const paymentResult = await square.payments.create({
