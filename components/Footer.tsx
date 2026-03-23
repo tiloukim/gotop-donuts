@@ -24,6 +24,16 @@ export default function Footer() {
           <Link href="/orders" className="text-gray-400 hover:text-white text-sm">Orders</Link>
         </div>
       </div>
+      {/* Partner Section */}
+      <div className="border-t border-gray-800 py-6">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-2">
+          <p className="text-gray-500 text-xs">Powered by</p>
+          <a href="https://donutdash.app" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
+            <img src="/donutdash-logo.png" alt="DonutDash" className="h-10 object-contain" />
+          </a>
+        </div>
+      </div>
+
       <div className="border-t border-gray-800 py-3 text-center text-gray-500 text-xs px-4">
         &copy; {new Date().getFullYear()} Top Donuts. All rights reserved.
       </div>
