@@ -5,13 +5,14 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ADMIN_EMAIL } from '@/lib/constants'
-import { LayoutDashboard, ShoppingBag, Users, UtensilsCrossed, Menu, X, LogOut } from 'lucide-react'
+import { LayoutDashboard, ShoppingBag, Users, UtensilsCrossed, Clock, Menu, X, LogOut } from 'lucide-react'
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
   { href: '/admin/menu', label: 'Menu', icon: UtensilsCrossed },
   { href: '/admin/customers', label: 'Customers', icon: Users },
+  { href: '/admin/hours', label: 'Hours', icon: Clock },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

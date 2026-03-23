@@ -5,8 +5,18 @@ import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/lib/cart-store';
 import { createClient } from '@/lib/supabase/client';
 import SquarePaymentForm from '@/components/SquarePaymentForm';
-import { REDEEM_POINTS, REDEEM_DISCOUNT, STORE_HOURS } from '@/lib/constants';
+import { REDEEM_POINTS, REDEEM_DISCOUNT } from '@/lib/constants';
 import type { OrderType, Profile } from '@/lib/types';
+
+interface StoreHoursDay {
+  day_of_week: number
+  day_name: string
+  open_time: string
+  close_time: string
+  delivery_start: string | null
+  delivery_end: string | null
+  is_closed: boolean
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -34,6 +44,9 @@ export default function CheckoutPage() {
   const [addressError, setAddressError] = useState('');
   const [calculatingFee, setCalculatingFee] = useState(false);
 
+  // Store hours from DB
+  const [storeHours, setStoreHours] = useState<StoreHoursDay[]>([]);
+
   // Scheduling state
   const [scheduleMode, setScheduleMode] = useState<'asap' | 'scheduled'>('asap');
   const [scheduleDate, setScheduleDate] = useState('');
@@ -54,6 +67,12 @@ export default function CheckoutPage() {
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       if (data) setProfile(data);
     });
+
+    // Fetch store hours
+    fetch('/api/hours')
+      .then(r => r.json())
+      .then(d => { if (d.hours) setStoreHours(d.hours); })
+      .catch(() => {});
   }, []);
 
   // Generate available dates (today + next 6 days)
@@ -68,16 +87,24 @@ export default function CheckoutPage() {
     return dates;
   }
 
+  // Get hours for a specific date
+  function getHoursForDate(dateStr: string): StoreHoursDay | null {
+    const date = new Date(dateStr + 'T12:00:00');
+    const dayOfWeek = date.getDay(); // 0=Sunday
+    return storeHours.find(h => h.day_of_week === dayOfWeek) || null;
+  }
+
   // Generate 30-min time slots within store hours, filtering past slots for today
   function getTimeSlots(dateStr: string): { label: string; value: string }[] {
+    const dayHours = getHoursForDate(dateStr);
+    if (!dayHours || dayHours.is_closed) return [];
+
     const slots: { label: string; value: string }[] = [];
-    // Parse store hours: 4:30 AM = 4.5h, 12:30 PM = 12.5h
-    const openHour = 4, openMin = 30;
-    const closeHour = 12, closeMin = 30;
+    const [openHour, openMin] = dayHours.open_time.split(':').map(Number);
+    const [closeHour, closeMin] = dayHours.close_time.split(':').map(Number);
 
     const now = new Date();
     const isToday = dateStr === now.toISOString().split('T')[0];
-    // Require 30 minutes from now for today's slots
     const minTime = isToday ? new Date(now.getTime() + 30 * 60 * 1000) : null;
 
     for (let h = openHour; h <= closeHour; h++) {
@@ -353,15 +380,19 @@ export default function CheckoutPage() {
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white"
               >
                 <option value="">Select date</option>
-                {getAvailableDates().map((d) => (
-                  <option key={d} value={d}>
-                    {new Date(d + 'T12:00:00').toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </option>
-                ))}
+                {getAvailableDates().map((d) => {
+                  const dayHours = getHoursForDate(d);
+                  const closed = dayHours?.is_closed;
+                  return (
+                    <option key={d} value={d} disabled={closed}>
+                      {new Date(d + 'T12:00:00').toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                      })}{closed ? ' (Closed)' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
             <div>
@@ -383,7 +414,9 @@ export default function CheckoutPage() {
             </div>
             {scheduleDate && getTimeSlots(scheduleDate).length === 0 && (
               <p className="col-span-2 text-sm text-amber-600">
-                No available time slots for this date. Store hours: {STORE_HOURS.open} – {STORE_HOURS.close}
+                {getHoursForDate(scheduleDate)?.is_closed
+                  ? 'Store is closed on this day.'
+                  : 'No available time slots for this date.'}
               </p>
             )}
           </div>

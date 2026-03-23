@@ -148,6 +148,35 @@ create policy "Users can view own order items" on order_items for select
 create policy "Users can view own rewards" on reward_transactions for select using (auth.uid() = user_id);
 
 
+-- Store hours table (one row per day of week)
+create table if not exists store_hours (
+  id serial primary key,
+  day_of_week integer not null unique check (day_of_week between 0 and 6), -- 0=Sunday, 6=Saturday
+  day_name text not null,
+  open_time time not null default '04:30',
+  close_time time not null default '12:30',
+  delivery_start time,
+  delivery_end time,
+  is_closed boolean default false,
+  updated_at timestamptz default now()
+);
+
+-- Anyone can read store hours (needed for checkout)
+alter table store_hours enable row level security;
+create policy "Anyone can view store hours" on store_hours for select to anon, authenticated using (true);
+
+-- Seed default hours (Mon-Sun, 4:30 AM - 12:30 PM)
+insert into store_hours (day_of_week, day_name, open_time, close_time, delivery_start, delivery_end) values
+  (0, 'Sunday',    '04:30', '12:30', '07:00', '12:00'),
+  (1, 'Monday',    '04:30', '12:30', '07:00', '12:00'),
+  (2, 'Tuesday',   '04:30', '12:30', '07:00', '12:00'),
+  (3, 'Wednesday', '04:30', '12:30', '07:00', '12:00'),
+  (4, 'Thursday',  '04:30', '12:30', '07:00', '12:00'),
+  (5, 'Friday',    '04:30', '12:30', '07:00', '12:00'),
+  (6, 'Saturday',  '04:30', '12:30', '07:00', '12:00')
+on conflict (day_of_week) do nothing;
+
+
 -- ============================================
 -- SEED DATA: Menu Items
 -- ============================================
