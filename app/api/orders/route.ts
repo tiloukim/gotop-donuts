@@ -186,13 +186,6 @@ export async function POST(request: NextRequest) {
         item.selected_variants ? Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(', ') : '',
       ].filter(Boolean).join(' | ') || undefined;
 
-      if (catalogInfo?.variationId) {
-        return {
-          catalogObjectId: catalogInfo.variationId,
-          quantity: String(item.quantity),
-          ...(itemNote && { note: itemNote }),
-        };
-      }
       return {
         name: item.name,
         quantity: String(item.quantity),
