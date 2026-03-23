@@ -29,7 +29,7 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-2">
           <p className="text-gray-500 text-xs">Partner with</p>
           <a href="https://donutdash.app" target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
-            <img src="/DonutDashfooterlogo.png" alt="DonutDash" className="h-30 object-contain" />
+            <img src="/DonutDashfooterlogo.png" alt="DonutDash" className="h-16 object-contain" />
           </a>
         </div>
       </div>
