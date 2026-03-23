@@ -17,10 +17,11 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<EnrichedOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
-  const [refundModal, setRefundModal] = useState<{ orderId: string; orderNumber: number; total?: number; partial?: boolean } | null>(null)
+  const [refundModal, setRefundModal] = useState<{ orderId: string; orderNumber: number; total?: number; partial?: boolean; items?: { name: string; total_price: number; selected_variants?: Record<string, string> }[] } | null>(null)
   const [refundReason, setRefundReason] = useState('Out of stock items')
   const [customReason, setCustomReason] = useState('')
   const [refundAmount, setRefundAmount] = useState('')
+  const [refundSelectedItems, setRefundSelectedItems] = useState<Set<number>>(new Set())
   const [showCancelled, setShowCancelled] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
@@ -222,6 +223,7 @@ export default function AdminOrdersPage() {
     setUpdating(null)
     setRefundReason('Out of stock items')
     setRefundAmount('')
+    setRefundSelectedItems(new Set())
   }
 
   if (loading) {
@@ -625,7 +627,13 @@ export default function AdminOrdersPage() {
                         )}
                         {order.square_payment_id && (
                           <button
-                            onClick={() => setRefundModal({ orderId: order.id, orderNumber: order.order_number, total: Number(order.total), partial: true })}
+                            onClick={() => setRefundModal({
+                              orderId: order.id,
+                              orderNumber: order.order_number,
+                              total: Number(order.total),
+                              partial: true,
+                              items: order.order_items.map(i => ({ name: i.name, total_price: Number(i.total_price), selected_variants: i.selected_variants })),
+                            })}
                             className="text-xs px-3 py-1.5 rounded-lg font-medium bg-red-100 text-red-600 hover:bg-red-200"
                           >
                             Partial Refund
@@ -661,21 +669,57 @@ export default function AdminOrdersPage() {
                 : 'The customer will be fully refunded to their original payment method.'}
             </p>
 
-            {refundModal.partial && (
-              <>
-                <label className="block text-sm font-medium mb-1">Refund Amount ($)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max={refundModal.total}
-                  placeholder="0.00"
-                  value={refundAmount}
-                  onChange={(e) => setRefundAmount(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg mb-3 text-sm"
-                  autoFocus
-                />
-              </>
+            {refundModal.partial && refundModal.items && (
+              <div className="mb-3">
+                <label className="block text-sm font-medium mb-2">Select missing items to refund:</label>
+                <div className="border rounded-lg divide-y">
+                  {refundModal.items.map((item, idx) => (
+                    <label key={idx} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={refundSelectedItems.has(idx)}
+                        onChange={(e) => {
+                          const next = new Set(refundSelectedItems)
+                          if (e.target.checked) next.add(idx); else next.delete(idx)
+                          setRefundSelectedItems(next)
+                          const itemTotal = refundModal.items!
+                            .filter((_, i) => next.has(i))
+                            .reduce((sum, it) => sum + it.total_price, 0)
+                          setRefundAmount(itemTotal > 0 ? itemTotal.toFixed(2) : '')
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                      />
+                      <div className="flex-1">
+                        <span className="text-sm">{item.name}</span>
+                        {item.selected_variants && Object.keys(item.selected_variants).length > 0 && (
+                          <span className="text-xs text-purple-600 ml-1">
+                            ({Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(', ')})
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-sm text-gray-500">${item.total_price.toFixed(2)}</span>
+                    </label>
+                  ))}
+                </div>
+                {refundAmount && (
+                  <p className="text-sm font-medium text-red-600 mt-2">
+                    Refund amount: ${refundAmount}
+                  </p>
+                )}
+                <div className="mt-2">
+                  <label className="text-xs text-gray-500">Or enter custom amount:</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={refundModal.total}
+                    placeholder="0.00"
+                    value={refundAmount}
+                    onChange={(e) => { setRefundAmount(e.target.value); setRefundSelectedItems(new Set()) }}
+                    className="w-full px-3 py-2 border rounded-lg text-sm mt-1"
+                  />
+                </div>
+              </div>
             )}
 
             <label className="block text-sm font-medium mb-1">Reason</label>
@@ -703,7 +747,7 @@ export default function AdminOrdersPage() {
 
             <div className="flex gap-3 mt-4">
               <button
-                onClick={() => { setRefundModal(null); setRefundReason('Out of stock items'); setCustomReason(''); setRefundAmount('') }}
+                onClick={() => { setRefundModal(null); setRefundReason('Out of stock items'); setCustomReason(''); setRefundAmount(''); setRefundSelectedItems(new Set()) }}
                 className="flex-1 py-2 rounded-lg border border-gray-300 text-sm font-medium hover:bg-gray-50"
               >
                 Go Back
