@@ -325,8 +325,7 @@ export async function POST(request: NextRequest) {
     const itemSummary = orderItems.map(i => `${i.quantity}x ${i.name}`).join(', ');
     const paymentNote = `gotopdonuts.com | ${orderType === 'pickup' ? 'Pickup' : 'Delivery'} | ${itemSummary}`;
 
-    // 2. Create payment — standalone so it shows in POS Transactions
-    // The Square order (created above) keeps item details for receipts/orders view
+    // 2. Create payment linked to the Square order
     const paymentResult = await square.payments.create({
       sourceId,
       idempotencyKey: randomUUID(),
@@ -335,6 +334,7 @@ export async function POST(request: NextRequest) {
         currency: 'USD',
       },
       locationId,
+      ...(squareOrderId && { orderId: squareOrderId }),
       note: paymentNote,
     });
 
@@ -343,19 +343,6 @@ export async function POST(request: NextRequest) {
     }
 
     const squarePaymentId = paymentResult.payment.id;
-
-    // Link payment to Square order (so order shows as paid) — non-blocking
-    if (squareOrderId && squarePaymentId) {
-      try {
-        await square.orders.pay({
-          orderId: squareOrderId,
-          idempotencyKey: randomUUID(),
-          paymentIds: [squarePaymentId],
-        });
-      } catch {
-        // Non-critical — order and payment both exist, just not linked
-      }
-    }
 
     // Use Square's total if available (matches actual charge)
     const actualTotal = squareOrderTotal
