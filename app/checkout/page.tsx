@@ -108,14 +108,20 @@ export default function CheckoutPage() {
     return storeHours.find(h => h.day_of_week === dayOfWeek) || defaultHours;
   }
 
-  // Generate 30-min time slots within store hours, filtering past slots for today
+  // Generate 30-min time slots within store/delivery hours, filtering past slots for today
   function getTimeSlots(dateStr: string): { label: string; value: string }[] {
     const dayHours = getHoursForDate(dateStr);
     if (dayHours.is_closed) return [];
 
+    // Use delivery hours when delivery is selected, store hours for pickup
+    const startTime = cart.orderType === 'delivery' && dayHours.delivery_start
+      ? dayHours.delivery_start : dayHours.open_time;
+    const endTime = cart.orderType === 'delivery' && dayHours.delivery_end
+      ? dayHours.delivery_end : dayHours.close_time;
+
     const slots: { label: string; value: string }[] = [];
-    const [openHour, openMin] = dayHours.open_time.split(':').map(Number);
-    const [closeHour, closeMin] = dayHours.close_time.split(':').map(Number);
+    const [openHour, openMin] = startTime.split(':').map(Number);
+    const [closeHour, closeMin] = endTime.split(':').map(Number);
 
     const now = new Date();
     const isToday = dateStr === toLocalDateStr(now);

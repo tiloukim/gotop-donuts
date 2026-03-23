@@ -63,9 +63,14 @@ export default function CartPage() {
     const dayHours = getHoursForDate(dateStr);
     if (dayHours.is_closed) return [];
 
+    const startTime = cart.orderType === 'delivery' && dayHours.delivery_start
+      ? dayHours.delivery_start : dayHours.open_time;
+    const endTime = cart.orderType === 'delivery' && dayHours.delivery_end
+      ? dayHours.delivery_end : dayHours.close_time;
+
     const slots: { label: string; value: string }[] = [];
-    const [openHour, openMin] = dayHours.open_time.split(':').map(Number);
-    const [closeHour, closeMin] = dayHours.close_time.split(':').map(Number);
+    const [openHour, openMin] = startTime.split(':').map(Number);
+    const [closeHour, closeMin] = endTime.split(':').map(Number);
     const now = new Date();
     const isToday = dateStr === toLocalDateStr(now);
     const minTime = isToday ? new Date(now.getTime() + 30 * 60 * 1000) : null;
