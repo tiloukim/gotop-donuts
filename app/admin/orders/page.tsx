@@ -375,9 +375,21 @@ export default function AdminOrdersPage() {
               </div>
 
               {order.delivery_address && (
-                <p className="text-sm text-gray-600 mb-3">
-                  📍 {order.delivery_address.street}, {order.delivery_address.city}
-                </p>
+                <div className="flex items-center gap-2 mb-3">
+                  <p className="text-sm text-gray-600">
+                    📍 {order.delivery_address.street}, {order.delivery_address.city}, {order.delivery_address.state} {order.delivery_address.zip}
+                  </p>
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                      `${order.delivery_address.street}, ${order.delivery_address.city}, ${order.delivery_address.state} ${order.delivery_address.zip}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-1"
+                  >
+                    🧭 Navigate
+                  </a>
+                </div>
               )}
 
               <div className="flex gap-2 flex-wrap items-center">
