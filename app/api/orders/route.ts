@@ -127,13 +127,15 @@ export async function POST(request: NextRequest) {
 
   let subtotal = 0;
   const orderItems = items.map(item => {
-    const menu = menuMap.get(item.menu_item_id);
-    const unitPrice = menu?.price || item.price;
+    // Use cart price for items with variants (variant pricing set by customer selection)
+    // Fall back to Square catalog price for items without variants
+    const hasVariants = item.selectedVariants && Object.keys(item.selectedVariants).length > 0;
+    const unitPrice = hasVariants ? item.price : (menuMap.get(item.menu_item_id)?.price || item.price);
     const totalPrice = unitPrice * item.quantity;
     subtotal += totalPrice;
     return {
       menu_item_id: item.menu_item_id,
-      name: menu?.name || item.name,
+      name: item.name,
       quantity: item.quantity,
       unit_price: unitPrice,
       total_price: totalPrice,
