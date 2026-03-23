@@ -188,7 +188,7 @@ export default function OrderDetailPage() {
         )}
         {order.service_fee > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Service Fee</span>
+            <span className="text-gray-600">Online Order Fee</span>
             <span>${order.service_fee.toFixed(2)}</span>
           </div>
         )}

@@ -596,7 +596,7 @@ export default function CheckoutPage() {
               </div>
             )}
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Service Fee</span>
+              <span className="text-gray-600">Online Order Fee</span>
               <span>${cart.getServiceFee().toFixed(2)}</span>
             </div>
             {giftCardDiscount > 0 && (

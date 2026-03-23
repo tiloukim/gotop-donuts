@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
     }
     if (serviceFee > 0) {
       serviceCharges.push({
-        name: 'Service Fee',
+        name: 'Online Order Fee',
         amountMoney: { amount: BigInt(Math.round(serviceFee * 100)), currency: 'USD' },
         taxable: false,
       });
