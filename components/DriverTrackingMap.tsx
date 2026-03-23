@@ -23,12 +23,17 @@ const customerIcon = L.divIcon({
   iconAnchor: [16, 32],
 })
 
-const driverIcon = L.divIcon({
-  html: '<div style="font-size:28px;text-align:center;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))">🚗</div>',
-  className: '',
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
-})
+function createDriverIcon(heading: number | null) {
+  // Default heading 0 = north. CSS rotate: 0deg = up.
+  // The car emoji 🚗 faces left by default, so we offset by +90 to make it face up at 0deg heading
+  const rotation = heading != null ? heading + 90 : 90;
+  return L.divIcon({
+    html: `<div style="font-size:28px;text-align:center;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));transform:rotate(${rotation}deg);transition:transform 0.5s ease">🚗</div>`,
+    className: '',
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+  })
+}
 
 // Component to fit map bounds
 function FitBounds({ points }: { points: [number, number][] }) {
@@ -42,17 +47,18 @@ function FitBounds({ points }: { points: [number, number][] }) {
   return null
 }
 
-// Component to smoothly animate driver marker
-function AnimatedMarker({ position }: { position: [number, number] }) {
+// Component to smoothly animate driver marker with heading rotation
+function AnimatedMarker({ position, heading }: { position: [number, number]; heading: number | null }) {
   const markerRef = useRef<L.Marker>(null)
   const [currentPos, setCurrentPos] = useState(position)
+  const icon = createDriverIcon(heading)
 
   useEffect(() => {
     setCurrentPos(position)
   }, [position])
 
   return (
-    <Marker position={currentPos} icon={driverIcon} ref={markerRef}>
+    <Marker position={currentPos} icon={icon} ref={markerRef}>
       <Popup>Driver is here</Popup>
     </Marker>
   )
@@ -64,7 +70,7 @@ interface DriverTrackingMapProps {
 }
 
 export default function DriverTrackingMap({ orderId, deliveryAddress }: DriverTrackingMapProps) {
-  const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number; heading: number | null } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -73,11 +79,11 @@ export default function DriverTrackingMap({ orderId, deliveryAddress }: DriverTr
     // Fetch initial driver location
     supabase
       .from('driver_locations')
-      .select('lat, lng')
+      .select('lat, lng, heading')
       .eq('order_id', orderId)
       .single()
       .then(({ data }) => {
-        if (data) setDriverLocation({ lat: data.lat, lng: data.lng })
+        if (data) setDriverLocation({ lat: data.lat, lng: data.lng, heading: data.heading })
         setLoading(false)
       })
 
@@ -96,8 +102,8 @@ export default function DriverTrackingMap({ orderId, deliveryAddress }: DriverTr
           if (payload.eventType === 'DELETE') {
             setDriverLocation(null)
           } else {
-            const row = payload.new as { lat: number; lng: number }
-            setDriverLocation({ lat: row.lat, lng: row.lng })
+            const row = payload.new as { lat: number; lng: number; heading: number | null }
+            setDriverLocation({ lat: row.lat, lng: row.lng, heading: row.heading })
           }
         }
       )
@@ -166,7 +172,7 @@ export default function DriverTrackingMap({ orderId, deliveryAddress }: DriverTr
         )}
 
         {/* Driver marker */}
-        <AnimatedMarker position={[driverLocation.lat, driverLocation.lng]} />
+        <AnimatedMarker position={[driverLocation.lat, driverLocation.lng]} heading={driverLocation.heading} />
       </MapContainer>
     </div>
   )
