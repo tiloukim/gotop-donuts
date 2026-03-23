@@ -135,7 +135,9 @@ export async function POST(request: NextRequest) {
     subtotal += totalPrice;
     return {
       menu_item_id: item.menu_item_id,
-      name: item.name,
+      name: hasVariants
+        ? `${item.name} (${Object.values(item.selectedVariants!).join(', ')})`
+        : item.name,
       quantity: item.quantity,
       unit_price: unitPrice,
       total_price: totalPrice,
@@ -189,8 +191,14 @@ export async function POST(request: NextRequest) {
         item.special_instructions || '',
       ].filter(Boolean).join(' | ') || undefined;
 
+      // Append variant selections to item name (e.g., "Glazed Donut Holes (Half Dozen)")
+      const variantSuffix = item.selected_variants
+        ? Object.values(item.selected_variants).join(', ')
+        : '';
+      const displayName = variantSuffix ? `${item.name} (${variantSuffix})` : item.name;
+
       return {
-        name: item.name,
+        name: displayName,
         quantity: String(item.quantity),
         basePriceMoney: {
           amount: BigInt(Math.round(item.unit_price * 100)),
