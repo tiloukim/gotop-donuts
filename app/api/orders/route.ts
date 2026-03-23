@@ -73,41 +73,54 @@ export async function POST(request: NextRequest) {
 
   const service = createServiceClient();
 
-  // Validate menu items against Square catalog
+  // Build menu map — separate Square catalog items from web-only items
   const square = getSquareClient();
-  const itemIds = items.map(i => i.menu_item_id);
-
   let menuMap = new Map<string, { name: string; price: number; variationId: string | null }>();
-  try {
-    const { objects } = await square.catalog.batchGet({
-      objectIds: itemIds,
-      includeRelatedObjects: false,
-    });
 
-    if (objects) {
-      for (const obj of objects) {
-        if (obj.type === 'ITEM' && obj.itemData) {
-          const variation = obj.itemData.variations?.[0];
-          const variationId = variation?.id ?? null;
-          const priceMoney = variation?.type === 'ITEM_VARIATION'
-            ? variation.itemVariationData?.priceMoney
-            : undefined;
-          const priceCents = priceMoney?.amount ? Number(priceMoney.amount) : 0;
-          menuMap.set(obj.id, {
-            name: obj.itemData.name || 'Unknown',
-            price: priceCents / 100,
-            variationId,
-          });
-        }
-      }
+  // Web-only items (prefixed with 'web-') use cart data directly
+  for (const item of items) {
+    if (item.menu_item_id.startsWith('web-')) {
+      menuMap.set(item.menu_item_id, { name: item.name, price: item.price, variationId: null });
     }
-  } catch {
-    // If Square is unreachable, fall back to cart prices
   }
 
-  if (menuMap.size === 0 && items.length > 0) {
-    // Fallback: trust cart data if Square fetch failed
-    for (const item of items) {
+  // Square-linked items — fetch from catalog for variationId
+  const squareItemIds = items
+    .map(i => i.menu_item_id)
+    .filter(id => !id.startsWith('web-'));
+
+  if (squareItemIds.length > 0) {
+    try {
+      const { objects } = await square.catalog.batchGet({
+        objectIds: squareItemIds,
+        includeRelatedObjects: false,
+      });
+
+      if (objects) {
+        for (const obj of objects) {
+          if (obj.type === 'ITEM' && obj.itemData) {
+            const variation = obj.itemData.variations?.[0];
+            const variationId = variation?.id ?? null;
+            const priceMoney = variation?.type === 'ITEM_VARIATION'
+              ? variation.itemVariationData?.priceMoney
+              : undefined;
+            const priceCents = priceMoney?.amount ? Number(priceMoney.amount) : 0;
+            menuMap.set(obj.id, {
+              name: obj.itemData.name || 'Unknown',
+              price: priceCents / 100,
+              variationId,
+            });
+          }
+        }
+      }
+    } catch {
+      // If Square is unreachable, fall back to cart prices
+    }
+  }
+
+  // Fallback: any items not yet in menuMap use cart data
+  for (const item of items) {
+    if (!menuMap.has(item.menu_item_id)) {
       menuMap.set(item.menu_item_id, { name: item.name, price: item.price, variationId: null });
     }
   }

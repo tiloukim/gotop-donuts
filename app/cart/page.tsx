@@ -244,7 +244,13 @@ export default function CartPage() {
 
       {/* Summary */}
       <div className="bg-gray-50 rounded-xl p-6 space-y-3">
-        <div className="flex justify-between text-sm">
+        {items.map((item) => (
+          <div key={getCartKey(item)} className="flex justify-between text-sm">
+            <span>{item.quantity}x {item.name}</span>
+            <span>${(item.price * item.quantity).toFixed(2)}</span>
+          </div>
+        ))}
+        <div className="border-t pt-3 flex justify-between text-sm">
           <span className="text-gray-600">Subtotal</span>
           <span>${getSubtotal().toFixed(2)}</span>
         </div>
