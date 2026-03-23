@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
 import OrderTimeline from '@/components/OrderTimeline';
 import { STATUS_LABELS } from '@/lib/constants';
 import type { OrderWithItems, OrderStatus } from '@/lib/types';
+
+const DriverTrackingMap = dynamic(() => import('@/components/DriverTrackingMap'), { ssr: false });
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -136,6 +139,9 @@ export default function OrderDetailPage() {
             <p className="text-sm text-green-600 ml-12">
               Delivering to: {order.delivery_address.street}, {order.delivery_address.city}
             </p>
+          )}
+          {order.delivery_address && (
+            <DriverTrackingMap orderId={order.id} deliveryAddress={order.delivery_address} />
           )}
         </div>
       )}

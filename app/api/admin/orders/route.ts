@@ -98,6 +98,11 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  // Clean up driver location when delivery completes or is cancelled
+  if (['delivered', 'picked_up', 'cancelled', 'refunded'].includes(status)) {
+    await service.from('driver_locations').delete().eq('order_id', order_id)
+  }
+
   // Sync fulfillment state to Square POS
   if (data?.square_order_id) {
     const fulfillmentStateMap: Record<string, string> = {

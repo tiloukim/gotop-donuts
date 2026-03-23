@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { STATUS_LABELS } from '@/lib/constants'
 import type { OrderWithItems, OrderStatus } from '@/lib/types'
-import { RefreshCw, Volume2, VolumeX, Bell, BellOff, ChevronDown, ChevronRight } from 'lucide-react'
+import { RefreshCw, Volume2, VolumeX, Bell, BellOff, ChevronDown, ChevronRight, Navigation } from 'lucide-react'
+import { useDriverTracking } from '@/hooks/useDriverTracking'
 
 interface EnrichedOrder extends OrderWithItems {
   customer_name: string | null
@@ -27,6 +28,9 @@ export default function AdminOrdersPage() {
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [newOrderFlash, setNewOrderFlash] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Driver tracking
+  const { trackingOrderId, isTracking, error: trackingError, startTracking, stopTracking } = useDriverTracking()
 
   // Push state
   const [pushStatus, setPushStatus] = useState<'loading' | 'unsupported' | 'denied' | 'enabled' | 'available'>('loading')
@@ -168,6 +172,10 @@ export default function AdminOrdersPage() {
   }, [loadOrders, playSound])
 
   async function updateStatus(orderId: string, status: OrderStatus) {
+    // Auto-stop tracking if moving away from out_for_delivery
+    if (trackingOrderId === orderId && status !== 'out_for_delivery') {
+      await stopTracking()
+    }
     setUpdating(orderId)
     try {
       const res = await fetch('/api/admin/orders', {
@@ -375,20 +383,45 @@ export default function AdminOrdersPage() {
               </div>
 
               {order.delivery_address && (
-                <div className="flex items-center gap-2 mb-3">
-                  <p className="text-sm text-gray-600">
+                <div className="mb-3">
+                  <p className="text-sm text-gray-600 mb-2">
                     📍 {order.delivery_address.street}, {order.delivery_address.city}, {order.delivery_address.state} {order.delivery_address.zip}
                   </p>
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-                      `${order.delivery_address.street}, ${order.delivery_address.city}, ${order.delivery_address.state} ${order.delivery_address.zip}`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-1"
-                  >
-                    🧭 Navigate
-                  </a>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                        `${order.delivery_address.street}, ${order.delivery_address.city}, ${order.delivery_address.state} ${order.delivery_address.zip}`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-1"
+                    >
+                      🧭 Navigate
+                    </a>
+                    {order.status === 'out_for_delivery' && (
+                      trackingOrderId === order.id ? (
+                        <button
+                          onClick={stopTracking}
+                          className="bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-red-700 flex items-center gap-1.5"
+                        >
+                          <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                          Stop Tracking
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => startTracking(order.id)}
+                          disabled={isTracking}
+                          className="bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-green-700 flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          <Navigation size={12} />
+                          {isTracking ? 'Tracking another order' : 'Start Live Tracking'}
+                        </button>
+                      )
+                    )}
+                  </div>
+                  {trackingOrderId === order.id && trackingError && (
+                    <p className="text-xs text-red-500 mt-1">{trackingError}</p>
+                  )}
                 </div>
               )}
 

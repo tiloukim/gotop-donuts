@@ -149,6 +149,21 @@ create policy "Users can view own order items" on order_items for select
 create policy "Users can view own rewards" on reward_transactions for select using (auth.uid() = user_id);
 
 
+-- Driver locations table (live tracking for deliveries)
+create table if not exists driver_locations (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid references orders(id) on delete cascade not null unique,
+  lat double precision not null,
+  lng double precision not null,
+  heading double precision,
+  updated_at timestamptz default now()
+);
+
+alter publication supabase_realtime add table driver_locations;
+alter table driver_locations enable row level security;
+create policy "Anyone can view driver locations" on driver_locations for select to authenticated using (true);
+
+
 -- Store hours table (one row per day of week)
 create table if not exists store_hours (
   id serial primary key,
