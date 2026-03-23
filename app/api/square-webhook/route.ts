@@ -71,9 +71,9 @@ export async function POST(request: NextRequest) {
         if (orderId && newState) {
           // Map Square fulfillment states to our order statuses
           const stateMap: Record<string, string> = {
-            'PROPOSED': 'confirmed',
+            'PROPOSED': 'received',
             'RESERVED': 'preparing',
-            'PREPARED': 'ready_for_pickup',
+            'PREPARED': 'ready',
             'COMPLETED': 'picked_up',
             'CANCELED': 'cancelled',
           };
@@ -106,9 +106,9 @@ export async function POST(request: NextRequest) {
 
         if (sqOrderId && fulfillmentState) {
           const stateMap: Record<string, string> = {
-            'PROPOSED': 'confirmed',
+            'PROPOSED': 'received',
             'RESERVED': 'preparing',
-            'PREPARED': 'ready_for_pickup',
+            'PREPARED': 'ready',
             'COMPLETED': 'picked_up',
             'CANCELED': 'cancelled',
           };
