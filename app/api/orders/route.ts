@@ -309,13 +309,18 @@ export async function POST(request: NextRequest) {
       squareOrderTotal = squareOrder?.totalMoney?.amount
         ? BigInt(squareOrder.totalMoney.amount)
         : undefined;
-    } catch (orderErr) {
-      console.error('Square order creation failed:', orderErr);
-      // Fall back to payment without order (items won't show on POS but payment works)
+    } catch (orderErr: unknown) {
+      const errMsg = orderErr instanceof Error ? orderErr.message : JSON.stringify(orderErr, Object.getOwnPropertyNames(orderErr as object), 2);
+      console.error('Square order creation failed:', errMsg);
+      // Fall back to payment without order — items listed in payment note
     }
 
     // Use Square's computed total if available (avoids rounding mismatch), else our calculated total
     const paymentAmount = squareOrderTotal ?? BigInt(amountCents);
+
+    // Build payment note with item names (shows on receipt even without Square order)
+    const itemSummary = orderItems.map(i => `${i.quantity}x ${i.name}`).join(', ');
+    const paymentNote = `gotopdonuts.com | ${orderType === 'pickup' ? 'Pickup' : 'Delivery'} | ${itemSummary}`;
 
     // 2. Create payment linked to the Square order
     const paymentResult = await square.payments.create({
@@ -327,6 +332,7 @@ export async function POST(request: NextRequest) {
       },
       locationId,
       ...(squareOrderId && { orderId: squareOrderId }),
+      note: paymentNote,
     });
 
     if (paymentResult.payment?.status !== 'COMPLETED') {
