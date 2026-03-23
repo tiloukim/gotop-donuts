@@ -191,14 +191,8 @@ export async function POST(request: NextRequest) {
         item.special_instructions || '',
       ].filter(Boolean).join(' | ') || undefined;
 
-      // Append variant selections to item name (e.g., "Glazed Donut Holes (Half Dozen)")
-      const variantSuffix = item.selected_variants
-        ? Object.values(item.selected_variants).join(', ')
-        : '';
-      const displayName = variantSuffix ? `${item.name} (${variantSuffix})` : item.name;
-
       return {
-        name: displayName,
+        name: item.name,
         quantity: String(item.quantity),
         basePriceMoney: {
           amount: BigInt(Math.round(item.unit_price * 100)),
