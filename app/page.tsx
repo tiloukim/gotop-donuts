@@ -1,6 +1,28 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+const HERO_IMAGES = [
+  '/TopDonutShop.png',
+  ...([1,2,3,4,5,6,7,8,10,13].map(n => `/donuts/${n}.jpg`)),
+  ...([9,11,12].map(n => `/donuts/${n}.JPG`)),
+];
+
 export default function HomePage() {
+  const [currentImage, setCurrentImage] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImage(prev => {
+        let next;
+        do { next = Math.floor(Math.random() * HERO_IMAGES.length); } while (next === prev);
+        return next;
+      });
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <>
       {/* Hero */}
@@ -31,32 +53,19 @@ export default function HomePage() {
                 </Link>
               </div>
             </div>
-            {/* Image */}
-            <div className="rounded-2xl overflow-hidden shadow-2xl">
-              <img
-                src="/TopDonutShop.png"
-                alt="GoTop Donuts Shop in Tyler, TX"
-                className="w-full h-auto object-cover"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Donut Gallery */}
-      <section className="bg-warm-gray py-12">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
-            {[7, 3, 11, 1, 9, 5, 12, 2, 10, 6, 13, 4, 8].map((n) => (
-              <div key={n} className="break-inside-avoid rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow">
+            {/* Image Slideshow */}
+            <div className="rounded-2xl overflow-hidden shadow-2xl relative aspect-[4/3]">
+              {HERO_IMAGES.map((src, i) => (
                 <img
-                  src={`/donuts/${n}.${[9, 11, 12].includes(n) ? 'JPG' : 'jpg'}`}
-                  alt="Fresh donuts at Top Donuts"
-                  className="w-full h-auto object-cover"
-                  loading="lazy"
+                  key={src}
+                  src={src}
+                  alt="Top Donuts — Fresh donuts in Tyler, TX"
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+                    i === currentImage ? 'opacity-100' : 'opacity-0'
+                  }`}
                 />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
