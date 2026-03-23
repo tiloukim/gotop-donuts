@@ -19,7 +19,7 @@ export default function HomePage() {
         do { next = Math.floor(Math.random() * HERO_IMAGES.length); } while (next === prev);
         return next;
       });
-    }, 2000);
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
 
