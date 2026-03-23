@@ -384,10 +384,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
     }
 
-    // Insert order items
-    await service.from('order_items').insert(
-      orderItems.map(item => ({ ...item, order_id: order.id }))
+    // Insert order items (omit menu_item_id to avoid FK constraint issues with Square catalog IDs)
+    const { error: itemsError } = await service.from('order_items').insert(
+      orderItems.map(item => ({
+        order_id: order.id,
+        name: item.name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.total_price,
+        special_instructions: item.special_instructions,
+      }))
     );
+    if (itemsError) {
+      console.error('Failed to insert order items:', itemsError.message);
+    }
 
     // Update reward points
     const pointsEarned = Math.floor(actualTotal) * POINTS_PER_DOLLAR;
