@@ -1,4 +1,4 @@
-import { STORE_LAT, STORE_LNG, DELIVERY_TIERS, MAX_DELIVERY_MILES } from './constants';
+import { STORE_LAT, STORE_LNG, DELIVERY_FEE, MAX_DELIVERY_MILES } from './constants';
 
 // Get driving distance in miles using OSRM (free, no API key)
 async function drivingDistance(
@@ -31,8 +31,5 @@ export async function calculateDeliveryFee(lat: number, lng: number): Promise<{
     return { distance: rounded, fee: null, available: false };
   }
 
-  const tier = DELIVERY_TIERS.find(t => distance <= t.maxMiles);
-  const fee = tier ? tier.fee : DELIVERY_TIERS[DELIVERY_TIERS.length - 1].fee;
-
-  return { distance: rounded, fee, available: true };
+  return { distance: rounded, fee: DELIVERY_FEE, available: true };
 }

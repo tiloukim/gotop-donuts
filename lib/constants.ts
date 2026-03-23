@@ -9,14 +9,9 @@ export const NOTIFICATION_EMAIL = 'topdonuts903@gmail.com';
 export const STORE_LAT = 32.2711;
 export const STORE_LNG = -95.3071;
 
-// Delivery fee tiers
-export const DELIVERY_TIERS = [
-  { maxMiles: 3, fee: 2.99 },
-  { maxMiles: 5, fee: 4.99 },
-  { maxMiles: 8, fee: 6.99 },
-] as const;
-
-export const MAX_DELIVERY_MILES = 8;
+// Delivery settings
+export const DELIVERY_FEE = 6.99;
+export const MAX_DELIVERY_MILES = 3;
 
 // Tax rate
 export const TX_SALES_TAX = 0.0825;

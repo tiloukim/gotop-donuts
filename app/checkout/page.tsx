@@ -157,7 +157,7 @@ export default function CheckoutPage() {
         setAddressError(result.error || 'Could not verify address');
         cart.setDeliveryFee(0, null);
       } else if (!result.available) {
-        setAddressError(`Address is ${result.distance} miles away. We deliver up to 8 miles.`);
+        setAddressError(`Address is ${result.distance} miles away. We only deliver within 3 miles.`);
         cart.setDeliveryFee(0, null);
       } else {
         cart.setDeliveryAddress({ street, city, state, zip, lat: result.lat, lng: result.lng });
@@ -330,7 +330,7 @@ export default function CheckoutPage() {
             {addressError && <p className="text-red-500 text-sm">{addressError}</p>}
             {cart.deliveryFee > 0 && (
               <p className="text-accent text-sm font-medium">
-                Delivery fee: ${cart.deliveryFee.toFixed(2)} ({cart.deliveryDistance} mi)
+                Delivery fee: $6.99 ({cart.deliveryDistance} mi away)
               </p>
             )}
           </div>
@@ -612,12 +612,18 @@ export default function CheckoutPage() {
       {/* Payment */}
       <section>
         <h2 className="text-lg font-semibold mb-3">Payment</h2>
-        <SquarePaymentForm
-          onTokenize={handleTokenize}
-          onError={(msg) => setError(msg)}
-          loading={loading}
-          total={cart.getTotal()}
-        />
+        {cart.orderType === 'delivery' && !cart.deliveryAddress ? (
+          <div className="bg-amber-50 text-amber-700 p-4 rounded-lg text-sm font-medium">
+            Please enter your delivery address and verify it before proceeding to payment.
+          </div>
+        ) : (
+          <SquarePaymentForm
+            onTokenize={handleTokenize}
+            onError={(msg) => setError(msg)}
+            loading={loading}
+            total={cart.getTotal()}
+          />
+        )}
       </section>
     </div>
   );
