@@ -443,6 +443,17 @@ export default function AdminOrdersPage() {
 
                 <span className="mx-1 text-gray-300">|</span>
 
+                {order.square_payment_id && (
+                  <a
+                    href={`https://squareup.com/receipt/preview/${order.square_payment_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  >
+                    🧾 Receipt
+                  </a>
+                )}
+
                 <button
                   onClick={() => setRefundModal({ orderId: order.id, orderNumber: order.order_number })}
                   disabled={updating === order.id}
