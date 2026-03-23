@@ -595,6 +595,10 @@ export default function CheckoutPage() {
                 <span>${cart.tip.toFixed(2)}</span>
               </div>
             )}
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Service Fee</span>
+              <span>${cart.getServiceFee().toFixed(2)}</span>
+            </div>
             {giftCardDiscount > 0 && (
               <div className="flex justify-between text-sm text-green-600">
                 <span>Gift Card</span>

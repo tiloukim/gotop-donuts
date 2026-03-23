@@ -13,6 +13,10 @@ export const STORE_LNG = -95.3071;
 export const DELIVERY_FEE = 6.99;
 export const MAX_DELIVERY_MILES = 3;
 
+// Service fee (covers credit card processing: Square keyed-in 3.5% + $0.15)
+export const SERVICE_FEE_RATE = 0.035;
+export const SERVICE_FEE_FIXED = 0.15;
+
 // Tax rate
 export const TX_SALES_TAX = 0.0825;
 

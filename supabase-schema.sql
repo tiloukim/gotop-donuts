@@ -66,6 +66,7 @@ create table if not exists orders (
   subtotal numeric(8,2) not null,
   tax numeric(8,2) not null,
   delivery_fee numeric(8,2) default 0,
+  service_fee numeric(8,2) default 0,
   discount numeric(8,2) default 0,
   total numeric(8,2) not null,
   delivery_address jsonb,

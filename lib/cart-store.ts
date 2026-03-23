@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CartItem, OrderType, DeliveryAddress } from './types';
-import { TX_SALES_TAX } from './constants';
+import { TX_SALES_TAX, SERVICE_FEE_RATE, SERVICE_FEE_FIXED } from './constants';
 
 export function getCartKey(item: { menu_item_id: string; selectedVariants?: Record<string, string> }): string {
   const base = item.menu_item_id;
@@ -37,6 +37,7 @@ interface CartState {
 
   getSubtotal: () => number;
   getTax: () => number;
+  getServiceFee: () => number;
   getTotal: () => number;
   getItemCount: () => number;
 }
@@ -132,9 +133,15 @@ export const useCartStore = create<CartState>()(
 
       getTax: () => get().getSubtotal() * TX_SALES_TAX,
 
+      getServiceFee: () => {
+        const state = get();
+        const beforeFee = state.getSubtotal() + state.getTax() + state.deliveryFee - state.discount + state.tip;
+        return Math.round((beforeFee * SERVICE_FEE_RATE + SERVICE_FEE_FIXED) * 100) / 100;
+      },
+
       getTotal: () => {
         const state = get();
-        return state.getSubtotal() + state.getTax() + state.deliveryFee - state.discount + state.tip;
+        return state.getSubtotal() + state.getTax() + state.deliveryFee - state.discount + state.tip + state.getServiceFee();
       },
 
       getItemCount: () => get().items.reduce((sum, item) => sum + item.quantity, 0),

@@ -264,6 +264,10 @@ export default function CartPage() {
             <span>-${cart.discount.toFixed(2)}</span>
           </div>
         )}
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-600">Service Fee</span>
+          <span>${cart.getServiceFee().toFixed(2)}</span>
+        </div>
         <div className="border-t pt-3 flex justify-between font-bold text-lg">
           <span>Total</span>
           <span>${getTotal().toFixed(2)}</span>

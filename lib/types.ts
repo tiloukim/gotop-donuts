@@ -58,6 +58,7 @@ export interface Order {
   subtotal: number;
   tax: number;
   delivery_fee: number;
+  service_fee: number;
   discount: number;
   tip: number;
   total: number;

@@ -3,7 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { getSquareClient } from '@/lib/square';
 import { sendOrderNotification } from '@/lib/email';
 import { sendNewOrderPush } from '@/lib/push';
-import { TX_SALES_TAX, POINTS_PER_DOLLAR, REDEEM_POINTS, REDEEM_DISCOUNT } from '@/lib/constants';
+import { TX_SALES_TAX, POINTS_PER_DOLLAR, REDEEM_POINTS, REDEEM_DISCOUNT, SERVICE_FEE_RATE, SERVICE_FEE_FIXED } from '@/lib/constants';
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import type { CartItem, DeliveryAddress, OrderType } from '@/lib/types';
@@ -155,7 +155,9 @@ export async function POST(request: NextRequest) {
   }
 
   const tip = tipAmount || 0;
-  const total = Math.round((subtotal + tax + actualDeliveryFee - discount + tip) * 100) / 100;
+  const beforeFee = subtotal + tax + actualDeliveryFee - discount + tip;
+  const serviceFee = Math.round((beforeFee * SERVICE_FEE_RATE + SERVICE_FEE_FIXED) * 100) / 100;
+  const total = Math.round((beforeFee + serviceFee) * 100) / 100;
   const amountCents = Math.round(total * 100);
 
   // Process payment
@@ -202,6 +204,13 @@ export async function POST(request: NextRequest) {
       serviceCharges.push({
         name: 'Tip',
         amountMoney: { amount: BigInt(Math.round(tip * 100)), currency: 'USD' },
+        taxable: false,
+      });
+    }
+    if (serviceFee > 0) {
+      serviceCharges.push({
+        name: 'Service Fee',
+        amountMoney: { amount: BigInt(Math.round(serviceFee * 100)), currency: 'USD' },
         taxable: false,
       });
     }
@@ -328,6 +337,7 @@ export async function POST(request: NextRequest) {
         subtotal,
         tax,
         delivery_fee: actualDeliveryFee,
+        service_fee: serviceFee,
         discount,
         tip,
         total: actualTotal,

@@ -186,6 +186,12 @@ export default function OrderDetailPage() {
             <span>${order.tip.toFixed(2)}</span>
           </div>
         )}
+        {order.service_fee > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Service Fee</span>
+            <span>${order.service_fee.toFixed(2)}</span>
+          </div>
+        )}
         <div className="border-t pt-2 flex justify-between font-bold">
           <span>Total</span>
           <span>${order.total.toFixed(2)}</span>
