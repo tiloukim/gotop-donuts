@@ -54,13 +54,13 @@ export default function HomePage() {
               </div>
             </div>
             {/* Image Slideshow */}
-            <div className="rounded-2xl overflow-hidden shadow-2xl relative aspect-[4/3]">
+            <div className="rounded-2xl overflow-hidden shadow-2xl relative aspect-[4/3] bg-gray-100">
               {HERO_IMAGES.map((src, i) => (
                 <img
                   key={src}
                   src={src}
                   alt="Top Donuts — Fresh donuts in Tyler, TX"
-                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+                  className={`absolute inset-0 w-full h-full object-contain bg-white transition-opacity duration-700 ${
                     i === currentImage ? 'opacity-100' : 'opacity-0'
                   }`}
                 />
