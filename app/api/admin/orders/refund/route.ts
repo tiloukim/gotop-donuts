@@ -13,9 +13,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { order_id, reason } = await request.json() as {
+  const { order_id, reason, amount } = await request.json() as {
     order_id: string
     reason?: string
+    amount?: number // partial refund amount in dollars, omit for full refund
   }
 
   if (!order_id) {
@@ -69,21 +70,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, note: 'Already refunded on Square, status updated' })
     }
 
+    // Determine refund amount (partial or full)
+    const refundCents = amount
+      ? Math.min(Math.round(amount * 100), refundableAmount)
+      : refundableAmount
+    const isPartial = refundCents < totalAmount
+
     await square.refunds.refundPayment({
       idempotencyKey: randomUUID(),
       paymentId: order.square_payment_id,
       amountMoney: {
-        amount: BigInt(refundableAmount),
+        amount: BigInt(refundCents),
         currency: 'USD',
       },
-      reason: reason || 'Out of stock items',
+      reason: reason || (isPartial ? 'Partial refund' : 'Full refund'),
     })
 
-    // Update order status
-    await service
-      .from('orders')
-      .update({ status: 'refunded', cancel_reason: reason || 'Refunded', updated_at: new Date().toISOString() })
-      .eq('id', order_id)
+    // Update order status — partial refund keeps order as-is, full refund marks as refunded
+    const refundedSoFar = refundedAmount + refundCents
+    if (refundedSoFar >= totalAmount) {
+      await service
+        .from('orders')
+        .update({ status: 'refunded', cancel_reason: reason || 'Refunded', updated_at: new Date().toISOString() })
+        .eq('id', order_id)
+    } else {
+      // Partial refund — keep current status, just log the reason
+      await service
+        .from('orders')
+        .update({ cancel_reason: `Partial refund: $${(refundCents / 100).toFixed(2)} — ${reason || 'Partial refund'}`, updated_at: new Date().toISOString() })
+        .eq('id', order_id)
+    }
 
     return NextResponse.json({ success: true })
   } catch (err) {

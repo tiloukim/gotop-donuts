@@ -17,9 +17,10 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<EnrichedOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
-  const [refundModal, setRefundModal] = useState<{ orderId: string; orderNumber: number } | null>(null)
+  const [refundModal, setRefundModal] = useState<{ orderId: string; orderNumber: number; total?: number; partial?: boolean } | null>(null)
   const [refundReason, setRefundReason] = useState('Out of stock items')
   const [customReason, setCustomReason] = useState('')
+  const [refundAmount, setRefundAmount] = useState('')
   const [showCancelled, setShowCancelled] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
@@ -203,13 +204,15 @@ export default function AdminOrdersPage() {
       const res = await fetch('/api/admin/orders/refund', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: refundModal.orderId, reason: refundReason === 'Other' ? (customReason || 'Other') : refundReason }),
+        body: JSON.stringify({
+          order_id: refundModal.orderId,
+          reason: refundReason === 'Other' ? (customReason || 'Other') : refundReason,
+          ...(refundAmount && { amount: parseFloat(refundAmount) }),
+        }),
       })
       const result = await res.json()
       if (res.ok) {
-        setOrders(prev =>
-          prev.map(o => (o.id === refundModal.orderId ? { ...o, status: (result.note?.includes('cancelled') ? 'cancelled' : 'refunded') as OrderStatus } : o))
-        )
+        loadOrders()
       } else {
         alert(result.error || 'Refund failed')
       }
@@ -218,6 +221,7 @@ export default function AdminOrdersPage() {
     }
     setUpdating(null)
     setRefundReason('Out of stock items')
+    setRefundAmount('')
   }
 
   if (loading) {
@@ -607,6 +611,35 @@ export default function AdminOrdersPage() {
                         </div>
                       </div>
                       {order.notes && <p className="text-sm text-amber-600 mt-2 font-medium">Note: {order.notes}</p>}
+                      {order.cancel_reason && <p className="text-sm text-orange-600 mt-1">{order.cancel_reason}</p>}
+                      <div className="flex gap-2 mt-3">
+                        {order.square_payment_id && (
+                          <a
+                            href={`https://squareup.com/receipt/preview/${order.square_payment_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          >
+                            🧾 Receipt
+                          </a>
+                        )}
+                        {order.square_payment_id && (
+                          <button
+                            onClick={() => setRefundModal({ orderId: order.id, orderNumber: order.order_number, total: Number(order.total), partial: true })}
+                            className="text-xs px-3 py-1.5 rounded-lg font-medium bg-red-100 text-red-600 hover:bg-red-200"
+                          >
+                            Partial Refund
+                          </button>
+                        )}
+                        {order.square_payment_id && (
+                          <button
+                            onClick={() => setRefundModal({ orderId: order.id, orderNumber: order.order_number })}
+                            className="text-xs px-3 py-1.5 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700"
+                          >
+                            Full Refund
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -619,8 +652,31 @@ export default function AdminOrdersPage() {
       {refundModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-bold mb-1">Cancel & Refund Order #{refundModal.orderNumber}</h3>
-            <p className="text-sm text-gray-500 mb-4">The customer will be refunded to their original payment method.</p>
+            <h3 className="text-lg font-bold mb-1">
+              {refundModal.partial ? 'Partial Refund' : 'Cancel & Refund'} Order #{refundModal.orderNumber}
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {refundModal.partial
+                ? `Order total: $${refundModal.total?.toFixed(2)}. Enter the amount to refund.`
+                : 'The customer will be fully refunded to their original payment method.'}
+            </p>
+
+            {refundModal.partial && (
+              <>
+                <label className="block text-sm font-medium mb-1">Refund Amount ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={refundModal.total}
+                  placeholder="0.00"
+                  value={refundAmount}
+                  onChange={(e) => setRefundAmount(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg mb-3 text-sm"
+                  autoFocus
+                />
+              </>
+            )}
 
             <label className="block text-sm font-medium mb-1">Reason</label>
             <select
@@ -647,7 +703,7 @@ export default function AdminOrdersPage() {
 
             <div className="flex gap-3 mt-4">
               <button
-                onClick={() => { setRefundModal(null); setRefundReason('Out of stock items'); setCustomReason('') }}
+                onClick={() => { setRefundModal(null); setRefundReason('Out of stock items'); setCustomReason(''); setRefundAmount('') }}
                 className="flex-1 py-2 rounded-lg border border-gray-300 text-sm font-medium hover:bg-gray-50"
               >
                 Go Back
