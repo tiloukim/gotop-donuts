@@ -87,17 +87,23 @@ export default function CheckoutPage() {
     return dates;
   }
 
+  // Default hours fallback (used while DB hours are loading)
+  const defaultHours: StoreHoursDay = {
+    day_of_week: 0, day_name: '', open_time: '04:30', close_time: '12:30',
+    delivery_start: '07:00', delivery_end: '12:00', is_closed: false,
+  };
+
   // Get hours for a specific date
-  function getHoursForDate(dateStr: string): StoreHoursDay | null {
+  function getHoursForDate(dateStr: string): StoreHoursDay {
     const date = new Date(dateStr + 'T12:00:00');
     const dayOfWeek = date.getDay(); // 0=Sunday
-    return storeHours.find(h => h.day_of_week === dayOfWeek) || null;
+    return storeHours.find(h => h.day_of_week === dayOfWeek) || defaultHours;
   }
 
   // Generate 30-min time slots within store hours, filtering past slots for today
   function getTimeSlots(dateStr: string): { label: string; value: string }[] {
     const dayHours = getHoursForDate(dateStr);
-    if (!dayHours || dayHours.is_closed) return [];
+    if (dayHours.is_closed) return [];
 
     const slots: { label: string; value: string }[] = [];
     const [openHour, openMin] = dayHours.open_time.split(':').map(Number);

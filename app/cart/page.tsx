@@ -1,17 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCartStore, getCartKey } from '@/lib/cart-store';
 import Link from 'next/link';
-import { STORE_HOURS } from '@/lib/constants';
 import type { OrderType } from '@/lib/types';
+
+interface StoreHoursDay {
+  day_of_week: number
+  day_name: string
+  open_time: string
+  close_time: string
+  delivery_start: string | null
+  delivery_end: string | null
+  is_closed: boolean
+}
+
+const defaultHours: StoreHoursDay = {
+  day_of_week: 0, day_name: '', open_time: '04:30', close_time: '12:30',
+  delivery_start: '07:00', delivery_end: '12:00', is_closed: false,
+};
 
 export default function CartPage() {
   const cart = useCartStore();
   const { items, removeItem, updateQuantity, updateInstructions, getSubtotal, getTax, getTotal } = cart;
+  const [storeHours, setStoreHours] = useState<StoreHoursDay[]>([]);
   const [scheduleMode, setScheduleMode] = useState<'asap' | 'scheduled'>('asap');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
+
+  useEffect(() => {
+    fetch('/api/hours')
+      .then(r => r.json())
+      .then(d => { if (d.hours) setStoreHours(d.hours); })
+      .catch(() => {});
+  }, []);
 
   function getAvailableDates(): string[] {
     const dates: string[] = [];
@@ -24,10 +46,19 @@ export default function CartPage() {
     return dates;
   }
 
+  function getHoursForDate(dateStr: string): StoreHoursDay {
+    const date = new Date(dateStr + 'T12:00:00');
+    const dayOfWeek = date.getDay();
+    return storeHours.find(h => h.day_of_week === dayOfWeek) || defaultHours;
+  }
+
   function getTimeSlots(dateStr: string): { label: string; value: string }[] {
+    const dayHours = getHoursForDate(dateStr);
+    if (dayHours.is_closed) return [];
+
     const slots: { label: string; value: string }[] = [];
-    const openHour = 4, openMin = 30;
-    const closeHour = 12, closeMin = 30;
+    const [openHour, openMin] = dayHours.open_time.split(':').map(Number);
+    const [closeHour, closeMin] = dayHours.close_time.split(':').map(Number);
     const now = new Date();
     const isToday = dateStr === now.toISOString().split('T')[0];
     const minTime = isToday ? new Date(now.getTime() + 30 * 60 * 1000) : null;
@@ -223,7 +254,9 @@ export default function CartPage() {
             </div>
             {scheduleDate && getTimeSlots(scheduleDate).length === 0 && (
               <p className="col-span-2 text-sm text-amber-600">
-                No available time slots for this date. Store hours: {STORE_HOURS.open} – {STORE_HOURS.close}
+                {getHoursForDate(scheduleDate).is_closed
+                  ? 'Store is closed on this day.'
+                  : 'No available time slots for this date.'}
               </p>
             )}
           </div>
