@@ -632,7 +632,7 @@ export default function AdminOrdersPage() {
                               orderNumber: order.order_number,
                               total: Number(order.total),
                               partial: true,
-                              items: order.order_items.map(i => ({ name: i.name, total_price: Number(i.total_price), selected_variants: i.selected_variants })),
+                              items: order.order_items.map(i => ({ name: i.name, total_price: Number(i.total_price), ...(i.selected_variants && { selected_variants: i.selected_variants }) })),
                             })}
                             className="text-xs px-3 py-1.5 rounded-lg font-medium bg-red-100 text-red-600 hover:bg-red-200"
                           >
