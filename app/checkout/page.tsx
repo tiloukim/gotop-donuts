@@ -75,6 +75,14 @@ export default function CheckoutPage() {
       .catch(() => {});
   }, []);
 
+  // Format date as YYYY-MM-DD in local timezone
+  function toLocalDateStr(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   // Generate available dates (today + next 6 days)
   function getAvailableDates(): string[] {
     const dates: string[] = [];
@@ -82,7 +90,7 @@ export default function CheckoutPage() {
     for (let i = 0; i < 7; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() + i);
-      dates.push(d.toISOString().split('T')[0]);
+      dates.push(toLocalDateStr(d));
     }
     return dates;
   }
@@ -110,7 +118,7 @@ export default function CheckoutPage() {
     const [closeHour, closeMin] = dayHours.close_time.split(':').map(Number);
 
     const now = new Date();
-    const isToday = dateStr === now.toISOString().split('T')[0];
+    const isToday = dateStr === toLocalDateStr(now);
     const minTime = isToday ? new Date(now.getTime() + 30 * 60 * 1000) : null;
 
     for (let h = openHour; h <= closeHour; h++) {

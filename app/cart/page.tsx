@@ -35,13 +35,20 @@ export default function CartPage() {
       .catch(() => {});
   }, []);
 
+  function toLocalDateStr(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   function getAvailableDates(): string[] {
     const dates: string[] = [];
     const now = new Date();
     for (let i = 0; i < 7; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() + i);
-      dates.push(d.toISOString().split('T')[0]);
+      dates.push(toLocalDateStr(d));
     }
     return dates;
   }
@@ -60,7 +67,7 @@ export default function CartPage() {
     const [openHour, openMin] = dayHours.open_time.split(':').map(Number);
     const [closeHour, closeMin] = dayHours.close_time.split(':').map(Number);
     const now = new Date();
-    const isToday = dateStr === now.toISOString().split('T')[0];
+    const isToday = dateStr === toLocalDateStr(now);
     const minTime = isToday ? new Date(now.getTime() + 30 * 60 * 1000) : null;
 
     for (let h = openHour; h <= closeHour; h++) {
