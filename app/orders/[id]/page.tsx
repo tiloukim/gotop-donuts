@@ -182,6 +182,11 @@ export default function OrderDetailPage() {
             <div key={item.id} className="flex justify-between">
               <div>
                 <span className="font-medium">{item.quantity}x</span> {item.name}
+                {item.selected_variants && Object.keys(item.selected_variants).length > 0 && (
+                  <p className="text-xs text-purple-600">
+                    {Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                  </p>
+                )}
                 {item.special_instructions && (
                   <p className="text-xs text-gray-400">{item.special_instructions}</p>
                 )}

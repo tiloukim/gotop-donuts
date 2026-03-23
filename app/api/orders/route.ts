@@ -393,6 +393,7 @@ export async function POST(request: NextRequest) {
         unit_price: item.unit_price,
         total_price: item.total_price,
         special_instructions: item.special_instructions,
+        selected_variants: item.selected_variants,
       }))
     );
     if (itemsError) {
