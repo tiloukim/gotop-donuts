@@ -149,6 +149,21 @@ create policy "Users can view own order items" on order_items for select
 create policy "Users can view own rewards" on reward_transactions for select using (auth.uid() = user_id);
 
 
+-- Reviews table
+create table if not exists reviews (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid references orders(id) on delete cascade not null unique,
+  user_id uuid references profiles(id) on delete cascade not null,
+  rating integer not null check (rating between 1 and 5),
+  comment text,
+  created_at timestamptz default now()
+);
+
+alter table reviews enable row level security;
+create policy "Users can view own reviews" on reviews for select using (auth.uid() = user_id);
+create policy "Users can insert own reviews" on reviews for insert with check (auth.uid() = user_id);
+
+
 -- Driver locations table (live tracking for deliveries)
 create table if not exists driver_locations (
   id uuid primary key default gen_random_uuid(),

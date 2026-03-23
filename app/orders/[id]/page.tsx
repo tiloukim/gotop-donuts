@@ -14,12 +14,26 @@ export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<OrderWithItems | null>(null);
   const [loading, setLoading] = useState(true);
+  const [review, setReview] = useState<{ rating: number; comment: string | null } | null>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   useEffect(() => {
     fetch(`/api/orders/${id}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.id) setOrder(data);
+        if (data.id) {
+          setOrder(data);
+          // Fetch existing review for completed orders
+          if (['delivered', 'picked_up'].includes(data.status)) {
+            fetch(`/api/reviews?order_id=${data.id}`)
+              .then(r => r.json())
+              .then(d => { if (d.review) setReview(d.review); })
+              .catch(() => {});
+          }
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -258,6 +272,75 @@ export default function OrderDetailPage() {
           <p className="text-gray-600 text-sm">
             {order.delivery_address.street}, {order.delivery_address.city}, {order.delivery_address.state} {order.delivery_address.zip}
           </p>
+        </div>
+      )}
+
+      {/* Review Section — only for completed orders */}
+      {['delivered', 'picked_up'].includes(order.status) && (
+        <div className="bg-white border rounded-xl p-6 mt-6">
+          {review || reviewSubmitted ? (
+            <div className="text-center">
+              <div className="text-3xl mb-2">
+                {'★'.repeat(review?.rating || reviewRating)}{'☆'.repeat(5 - (review?.rating || reviewRating))}
+              </div>
+              <p className="font-semibold text-accent">Thank you for your review!</p>
+              {(review?.comment || reviewComment) && (
+                <p className="text-sm text-gray-500 mt-1 italic">&ldquo;{review?.comment || reviewComment}&rdquo;</p>
+              )}
+            </div>
+          ) : (
+            <>
+              <h2 className="font-semibold mb-1">How was your order?</h2>
+              <p className="text-sm text-gray-500 mb-4">We&apos;d love to hear your feedback!</p>
+
+              {/* Star Rating */}
+              <div className="flex justify-center gap-2 mb-4">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setReviewRating(star)}
+                    className={`text-3xl transition-transform hover:scale-110 ${
+                      star <= reviewRating ? 'text-yellow-400' : 'text-gray-300'
+                    }`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+
+              {reviewRating > 0 && (
+                <>
+                  <textarea
+                    placeholder="Tell us about your experience (optional)..."
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none text-sm mb-3"
+                  />
+                  <button
+                    onClick={async () => {
+                      setReviewSubmitting(true);
+                      try {
+                        const res = await fetch('/api/reviews', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ order_id: order.id, rating: reviewRating, comment: reviewComment }),
+                        });
+                        if (res.ok) {
+                          setReviewSubmitted(true);
+                        }
+                      } catch { /* ignore */ }
+                      setReviewSubmitting(false);
+                    }}
+                    disabled={reviewSubmitting}
+                    className="w-full bg-primary text-white py-3 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+                  </button>
+                </>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
