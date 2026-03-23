@@ -141,7 +141,7 @@ export default function SquarePaymentForm({ onTokenize, onError, loading, total 
     }
 
     const script = document.createElement('script');
-    const isProduction = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT === 'production';
+    const isProduction = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT?.toLowerCase() === 'production';
     script.src = isProduction
       ? 'https://web.squarecdn.com/v1/square.js'
       : 'https://sandbox.web.squarecdn.com/v1/square.js';
