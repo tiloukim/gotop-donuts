@@ -68,7 +68,7 @@ export default function CartPage() {
         if (h === openHour && m < openMin) continue;
         if (h === closeHour && m > closeMin) continue;
         if (minTime) {
-          const slotDate = new Date(dateStr);
+          const slotDate = new Date(dateStr + 'T00:00:00');
           slotDate.setHours(h, m, 0, 0);
           if (slotDate <= minTime) continue;
         }
