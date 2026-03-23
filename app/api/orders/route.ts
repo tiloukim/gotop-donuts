@@ -231,20 +231,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Get customer name from profile (most reliable) or auth metadata
+    const { data: customerProfile } = await service
+      .from('profiles')
+      .select('full_name, phone')
+      .eq('id', user.id)
+      .single();
+    const displayName = customerProfile?.full_name || user.user_metadata?.full_name || user.email || 'Online Customer';
+    const customerPhone = customerProfile?.phone || '';
+
     let squareOrderId: string | undefined;
     let squareOrderTotal: bigint | undefined;
 
     try {
       const fulfillmentType = orderType === 'delivery' ? 'DELIVERY' : 'PICKUP';
-
-      // Get customer name from profile (most reliable) or auth metadata
-      const { data: customerProfile } = await service
-        .from('profiles')
-        .select('full_name, phone')
-        .eq('id', user.id)
-        .single();
-      const displayName = customerProfile?.full_name || user.user_metadata?.full_name || user.email || 'Online Customer';
-      const customerPhone = customerProfile?.phone || '';
 
       // Build receipt note for fulfillment
       const receiptParts = [`${displayName}${customerPhone ? ` | ${customerPhone}` : ''} | gotopdonuts.com`]
