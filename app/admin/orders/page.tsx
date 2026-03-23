@@ -443,7 +443,7 @@ export default function AdminOrdersPage() {
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     } disabled:opacity-50`}
                   >
-                    {STATUS_LABELS[s]}
+                    {s === 'ready' && order.order_type === 'delivery' ? 'Ready for Delivery' : STATUS_LABELS[s]}
                   </button>
                 ))}
 
