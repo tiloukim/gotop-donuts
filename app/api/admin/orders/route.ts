@@ -75,9 +75,21 @@ export async function PATCH(request: NextRequest) {
   }
 
   const service = createServiceClient()
+
+  // When marking out_for_delivery, calculate estimated delivery time
+  const updateFields: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
+  if (status === 'out_for_delivery') {
+    // Get delivery distance to estimate ETA
+    const { data: orderData } = await service.from('orders').select('delivery_distance_miles').eq('id', order_id).single()
+    const distanceMiles = orderData?.delivery_distance_miles || 3
+    // Estimate: 5 min per mile + 5 min buffer, minimum 15 min
+    const etaMinutes = Math.max(15, Math.round(distanceMiles * 5) + 5)
+    updateFields.estimated_ready_at = new Date(Date.now() + etaMinutes * 60 * 1000).toISOString()
+  }
+
   const { data, error } = await service
     .from('orders')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update(updateFields)
     .eq('id', order_id)
     .select()
     .single()

@@ -112,6 +112,34 @@ export default function OrderDetailPage() {
         </div>
       )}
 
+      {/* Delivery On The Way Banner */}
+      {order.status === 'out_for_delivery' && order.order_type === 'delivery' && (
+        <div className="bg-green-50 border-2 border-green-400 rounded-xl p-5 mb-6 animate-pulse">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-3xl">🚗</span>
+            <div>
+              <h2 className="font-bold text-green-800 text-lg">Your order is on the way!</h2>
+              {order.estimated_ready_at && (
+                <p className="text-sm text-green-700">
+                  Estimated delivery by{' '}
+                  <span className="font-bold">
+                    {new Date(order.estimated_ready_at).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </p>
+              )}
+            </div>
+          </div>
+          {order.delivery_address && (
+            <p className="text-sm text-green-600 ml-12">
+              Delivering to: {order.delivery_address.street}, {order.delivery_address.city}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Timeline */}
       {isActive && (
         <div className="bg-white border rounded-xl p-6 mb-6">
@@ -129,7 +157,7 @@ export default function OrderDetailPage() {
               })}
             </p>
           )}
-          {!order.scheduled_at && order.estimated_ready_at && (
+          {order.status !== 'out_for_delivery' && !order.scheduled_at && order.estimated_ready_at && (
             <p className="text-sm text-gray-500 mt-4 text-center">
               Estimated ready: {new Date(order.estimated_ready_at).toLocaleTimeString('en-US', {
                 hour: 'numeric',
