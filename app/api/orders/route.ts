@@ -236,10 +236,18 @@ export async function POST(request: NextRequest) {
 
     try {
       const fulfillmentType = orderType === 'delivery' ? 'DELIVERY' : 'PICKUP';
-      const displayName = user.user_metadata?.full_name || user.email || 'Online Customer';
+
+      // Get customer name from profile (most reliable) or auth metadata
+      const { data: customerProfile } = await service
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', user.id)
+        .single();
+      const displayName = customerProfile?.full_name || user.user_metadata?.full_name || user.email || 'Online Customer';
+      const customerPhone = customerProfile?.phone || '';
 
       // Build receipt note for fulfillment
-      const receiptParts = ['www.gotopdonuts.com Online Order']
+      const receiptParts = [`${displayName}${customerPhone ? ` | ${customerPhone}` : ''} | gotopdonuts.com`]
       if (scheduledAt) {
         const schedDate = new Date(scheduledAt)
         const dateStr = schedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
@@ -262,6 +270,7 @@ export async function POST(request: NextRequest) {
           recipient: {
             displayName,
             emailAddress: user.email,
+            ...(customerPhone && { phoneNumber: customerPhone }),
           },
           pickupAt: scheduledAt || new Date(Date.now() + 20 * 60 * 1000).toISOString(),
           note: fulfillmentNote,
@@ -271,6 +280,7 @@ export async function POST(request: NextRequest) {
           recipient: {
             displayName,
             emailAddress: user.email,
+            ...(customerPhone && { phoneNumber: customerPhone }),
             address: deliveryAddress ? {
               addressLine1: deliveryAddress.street,
               locality: deliveryAddress.city,
@@ -321,9 +331,9 @@ export async function POST(request: NextRequest) {
     // Use Square's computed total if available (avoids rounding mismatch), else our calculated total
     const paymentAmount = squareOrderTotal ?? BigInt(amountCents);
 
-    // Build payment note with item names (shows on receipt even without Square order)
+    // Build payment note with customer name and items (shows on receipt)
     const itemSummary = orderItems.map(i => `${i.quantity}x ${i.name}`).join(', ');
-    const paymentNote = `gotopdonuts.com | ${orderType === 'pickup' ? 'Pickup' : 'Delivery'} | ${itemSummary}`;
+    const paymentNote = `${displayName}${customerPhone ? ` (${customerPhone})` : ''} | ${orderType === 'pickup' ? 'Pickup' : 'Delivery'} | ${itemSummary}`;
 
     // 2. Create payment linked to the Square order
     const paymentResult = await square.payments.create({
