@@ -331,9 +331,8 @@ export async function POST(request: NextRequest) {
     // Use Square's computed total if available (avoids rounding mismatch), else our calculated total
     const paymentAmount = squareOrderTotal ?? BigInt(amountCents);
 
-    // Build payment note with customer name and items (shows on receipt)
-    const itemSummary = orderItems.map(i => `${i.quantity}x ${i.name}`).join(', ');
-    const paymentNote = `${displayName}${customerPhone ? ` (${customerPhone})` : ''} | ${orderType === 'pickup' ? 'Pickup' : 'Delivery'} | ${itemSummary}`;
+    // Build payment note with customer name (shows on receipt)
+    const paymentNote = `${displayName}${customerPhone ? ` (${customerPhone})` : ''} | ${orderType === 'pickup' ? 'Pickup' : 'Delivery'}`;
 
     // 2. Create payment linked to the Square order
     const paymentResult = await square.payments.create({
