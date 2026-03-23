@@ -182,8 +182,9 @@ export async function POST(request: NextRequest) {
     const squareOrderItems = orderItems.map(item => {
       const catalogInfo = menuMap.get(item.menu_item_id);
       const itemNote = [
-        item.special_instructions || '',
+        `$${item.unit_price.toFixed(2)}`,
         item.selected_variants ? Object.entries(item.selected_variants).map(([k, v]) => `${k}: ${v}`).join(', ') : '',
+        item.special_instructions || '',
       ].filter(Boolean).join(' | ') || undefined;
 
       return {
