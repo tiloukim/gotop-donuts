@@ -204,13 +204,14 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    // Build service charges (delivery fee + tip) — not taxable
-    const serviceCharges: { name: string; amountMoney: { amount: bigint; currency: 'USD' }; taxable: boolean }[] = [];
+    // Build service charges (delivery fee + tip) — not taxable, applied after tax
+    const serviceCharges: { name: string; amountMoney: { amount: bigint; currency: 'USD' }; taxable: boolean; calculationPhase: 'TOTAL_PHASE' }[] = [];
     if (actualDeliveryFee > 0) {
       serviceCharges.push({
         name: 'Delivery Fee',
         amountMoney: { amount: BigInt(Math.round(actualDeliveryFee * 100)), currency: 'USD' },
         taxable: false,
+        calculationPhase: 'TOTAL_PHASE',
       });
     }
     if (tip > 0) {
@@ -218,6 +219,7 @@ export async function POST(request: NextRequest) {
         name: 'Tip',
         amountMoney: { amount: BigInt(Math.round(tip * 100)), currency: 'USD' },
         taxable: false,
+        calculationPhase: 'TOTAL_PHASE',
       });
     }
     if (serviceFee > 0) {
@@ -225,6 +227,7 @@ export async function POST(request: NextRequest) {
         name: 'Online Order Fee',
         amountMoney: { amount: BigInt(Math.round(serviceFee * 100)), currency: 'USD' },
         taxable: false,
+        calculationPhase: 'TOTAL_PHASE',
       });
     }
 
