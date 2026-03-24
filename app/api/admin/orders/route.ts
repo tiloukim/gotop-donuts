@@ -67,14 +67,39 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { order_id, status } = await request.json() as { order_id: string; status: OrderStatus }
+  const body = await request.json() as { order_id: string; status?: OrderStatus; scheduled_at?: string }
+  const { order_id, status, scheduled_at } = body
+
+  const service = createServiceClient()
+
+  // Handle pickup time update
+  if (scheduled_at !== undefined) {
+    const updateFields: Record<string, unknown> = {
+      scheduled_at: scheduled_at || null,
+      estimated_ready_at: scheduled_at || null,
+      updated_at: new Date().toISOString(),
+    }
+    const { data, error } = await service
+      .from('orders')
+      .update(updateFields)
+      .eq('id', order_id)
+      .select()
+      .single()
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json(data)
+  }
+
+  if (!status) {
+    return NextResponse.json({ error: 'Missing status or scheduled_at' }, { status: 400 })
+  }
 
   const validStatuses: OrderStatus[] = ['received', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'picked_up', 'cancelled', 'refunded']
   if (!validStatuses.includes(status)) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
   }
-
-  const service = createServiceClient()
 
   // When marking out_for_delivery, calculate estimated delivery time
   const updateFields: Record<string, unknown> = { status, updated_at: new Date().toISOString() }

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { STATUS_LABELS } from '@/lib/constants'
 import type { OrderWithItems, OrderStatus } from '@/lib/types'
-import { RefreshCw, Volume2, VolumeX, Bell, BellOff, ChevronDown, ChevronRight, Navigation } from 'lucide-react'
+import { RefreshCw, Volume2, VolumeX, Bell, BellOff, ChevronDown, ChevronRight, Navigation, Pencil, Check, X } from 'lucide-react'
 import { useDriverTracking } from '@/hooks/useDriverTracking'
 
 interface EnrichedOrder extends OrderWithItems {
@@ -25,6 +25,9 @@ export default function AdminOrdersPage() {
   const [showCancelled, setShowCancelled] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
+  const [editingPickup, setEditingPickup] = useState<string | null>(null)
+  const [editPickupDate, setEditPickupDate] = useState('')
+  const [editPickupTime, setEditPickupTime] = useState('')
 
   // Sound state — default ON so staff don't miss orders
   const [soundEnabled, setSoundEnabled] = useState(true)
@@ -226,6 +229,35 @@ export default function AdminOrdersPage() {
     setRefundSelectedItems(new Set())
   }
 
+  function startEditPickup(order: EnrichedOrder) {
+    const scheduled = order.scheduled_at ? new Date(order.scheduled_at) : new Date()
+    setEditPickupDate(scheduled.toISOString().split('T')[0])
+    setEditPickupTime(scheduled.toTimeString().slice(0, 5))
+    setEditingPickup(order.id)
+  }
+
+  async function savePickupTime(orderId: string) {
+    if (!editPickupDate || !editPickupTime) return
+    setUpdating(orderId)
+    try {
+      const scheduled_at = new Date(`${editPickupDate}T${editPickupTime}`).toISOString()
+      const res = await fetch('/api/admin/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, scheduled_at }),
+      })
+      if (res.ok) {
+        setOrders(prev =>
+          prev.map(o => (o.id === orderId ? { ...o, scheduled_at: scheduled_at, estimated_ready_at: scheduled_at } : o))
+        )
+      }
+    } catch (e) {
+      console.error('Failed to update pickup time:', e)
+    }
+    setUpdating(null)
+    setEditingPickup(null)
+  }
+
   if (loading) {
     return (
       <div className="p-6 lg:p-8">
@@ -353,11 +385,54 @@ export default function AdminOrdersPage() {
                   </p>
                   <p className="text-sm text-gray-400">
                     {order.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'} &middot;{' '}
-                    {new Date(order.created_at).toLocaleTimeString('en-US', {
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
+                    {order.scheduled_at
+                      ? new Date(order.scheduled_at).toLocaleString('en-US', {
+                          month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+                        })
+                      : new Date(order.created_at).toLocaleTimeString('en-US', {
+                          hour: 'numeric', minute: '2-digit',
+                        })
+                    }
                   </p>
+                  {editingPickup === order.id ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="date"
+                        value={editPickupDate}
+                        onChange={e => setEditPickupDate(e.target.value)}
+                        className="text-xs border rounded px-2 py-1"
+                      />
+                      <input
+                        type="time"
+                        value={editPickupTime}
+                        onChange={e => setEditPickupTime(e.target.value)}
+                        className="text-xs border rounded px-2 py-1"
+                      />
+                      <button
+                        onClick={() => savePickupTime(order.id)}
+                        disabled={updating === order.id}
+                        className="text-green-600 hover:text-green-700 disabled:opacity-50"
+                        title="Save"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        onClick={() => setEditingPickup(null)}
+                        className="text-gray-400 hover:text-gray-600"
+                        title="Cancel"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => startEditPickup(order)}
+                      className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mt-0.5"
+                    >
+                      <Pencil size={12} />
+                      Edit pickup time
+                    </button>
+                  )}
                 </div>
                 <div className="text-right">
                   <span className="text-lg font-bold">${Number(order.total).toFixed(2)}</span>
