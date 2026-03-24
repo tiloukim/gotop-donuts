@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getSquareClient } from '@/lib/square'
 import type { FulfillmentState } from 'square'
 import { ADMIN_EMAIL } from '@/lib/constants'
+import { sendOrderStatusEmail } from '@/lib/email'
 import { NextRequest, NextResponse } from 'next/server'
 import type { OrderStatus } from '@/lib/types'
 
@@ -164,6 +165,20 @@ export async function PATCH(request: NextRequest) {
         console.error('Square fulfillment sync failed:', squareErr)
         // Don't fail the request — DB update already succeeded
       }
+    }
+  }
+
+  // Send email notification to customer
+  if (data?.user_id && status !== 'received') {
+    try {
+      const { data: userData } = await service.auth.admin.getUserById(data.user_id)
+      const customerEmail = userData?.user?.email
+      if (customerEmail) {
+        const orderUrl = `https://gotopdonuts.com/orders/${order_id}`
+        await sendOrderStatusEmail(customerEmail, { order_number: data.order_number, status }, orderUrl)
+      }
+    } catch (emailErr) {
+      console.error('Status email failed:', emailErr)
     }
   }
 
