@@ -35,7 +35,7 @@ export default function Footer() {
       </div>
 
       <div className="border-t border-gray-800 py-3 text-center text-gray-500 text-xs px-4">
-        &copy; {new Date().getFullYear()} Top Donuts. All rights reserved.
+        &copy; {new Date().getFullYear()} GoTop Donuts™. All rights reserved.
       </div>
     </footer>
   );
