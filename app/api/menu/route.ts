@@ -134,7 +134,7 @@ export async function GET() {
 
     return NextResponse.json(menuItems, {
       headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
       },
     })
   } catch (err) {

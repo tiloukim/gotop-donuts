@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createServiceClient } from '@/lib/supabase/service'
 import { ADMIN_EMAIL } from '@/lib/constants'
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 
 async function verifyAdmin(request: NextRequest) {
   // Create client directly from request cookies to avoid stale cookie issues
@@ -59,6 +60,10 @@ export async function PATCH(
       console.error('Update failed:', updateErr.message)
       return NextResponse.json({ error: updateErr.message }, { status: 500 })
     }
+
+    // Invalidate cached menu so customers see updated prices immediately
+    revalidatePath('/api/menu')
+    revalidatePath('/menu')
 
     return NextResponse.json({ ok: true })
   } catch (err) {
