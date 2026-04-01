@@ -38,6 +38,10 @@ export default function CheckoutPage() {
 
   // Delivery address fields
   const [street, setStreet] = useState('');
+  const [apt, setApt] = useState('');
+  const [building, setBuilding] = useState('');
+  const [floor, setFloor] = useState('');
+  const [gateCode, setGateCode] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('TX');
   const [zip, setZip] = useState('');
@@ -180,7 +184,7 @@ export default function CheckoutPage() {
         setAddressError(`Address is ${result.distance} miles away. We only deliver within 3 miles.`);
         cart.setDeliveryFee(0, null);
       } else {
-        cart.setDeliveryAddress({ street, city, state, zip, lat: result.lat, lng: result.lng });
+        cart.setDeliveryAddress({ street, apt, building, floor, gateCode, city, state, zip, lat: result.lat, lng: result.lng });
         cart.setDeliveryFee(result.fee, result.distance);
       }
     } catch {
@@ -317,6 +321,36 @@ export default function CheckoutPage() {
               onChange={(e) => setStreet(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <input
+                type="text"
+                placeholder="Apt #"
+                value={apt}
+                onChange={(e) => setApt(e.target.value)}
+                className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Building #"
+                value={building}
+                onChange={(e) => setBuilding(e.target.value)}
+                className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Floor #"
+                value={floor}
+                onChange={(e) => setFloor(e.target.value)}
+                className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Gate code"
+                value={gateCode}
+                onChange={(e) => setGateCode(e.target.value)}
+                className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              />
+            </div>
             <div className="grid grid-cols-3 gap-3">
               <input
                 type="text"
