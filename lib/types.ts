@@ -94,6 +94,10 @@ export interface OrderItem {
 
 export interface DeliveryAddress {
   street: string;
+  apt?: string;
+  building?: string;
+  floor?: string;
+  gateCode?: string;
   city: string;
   state: string;
   zip: string;
