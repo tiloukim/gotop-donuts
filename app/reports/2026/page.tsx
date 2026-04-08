@@ -7,9 +7,8 @@ const STORAGE_KEY = 'topdonut_reports_auth'
 
 // Revenue categories
 const defaultRevenue = [
-  { label: 'Credit Card', amount: 377648.90 },
-  { label: 'Cash', amount: 96789.42 },
-  { label: 'Cash App', amount: 629.98 },
+  { label: 'Credit Card', amount: 0 },
+  { label: 'Cash', amount: 0 },
 ]
 
 // Cost of Goods Sold
@@ -43,7 +42,7 @@ const defaultExpenses = [
   { label: 'Advertising', amount: 0 },
   { label: 'Cleaning Supplies', amount: 0 },
   { label: 'Office Supplies', amount: 0 },
-  { label: 'Merchant Credit Card FEE (Square)', amount: 13724.14 },
+  { label: 'Merchant Credit Card FEE', amount: 0 },
   { label: 'Bank Fee and Interest', amount: 0 },
   { label: 'Other Expenses', amount: 0 },
 ]
