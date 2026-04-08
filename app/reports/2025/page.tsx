@@ -12,49 +12,60 @@ const defaultRevenue = [
   { label: 'Cash App', amount: 629.98 },
 ]
 
-// Cost of Goods Sold
+// Cost of Goods Sold (from Austin Bank + Square Bank 2025)
 const defaultCOGS = [
-  { label: 'Dawn', amount: 0 },
-  { label: 'Star Supplies Milk', amount: 0 },
-  { label: 'Smith Fiel', amount: 0 },
-  { label: 'Tyler Beverage', amount: 0 },
-  { label: "Sam's Club", amount: 0 },
-  { label: 'Walmart', amount: 0 },
-  { label: 'Croissant Wholesale supplier', amount: 0 },
-  { label: 'Tyler C-Store', amount: 0 },
-  { label: 'Sunrise supply', amount: 0 },
-  { label: 'Hiland Milk company', amount: 0 },
+  { label: 'Dawn Food Products', amount: 46027.44 },       // Austin Bank
+  { label: "Sam's Club", amount: 14381.72 },                // Square Bank
+  { label: 'Walmart', amount: 8812.06 },                    // Square ($8,767.62) + Southside ($44.44)
+  { label: "Brookshire's", amount: 3585.78 },                // Square Bank
+  { label: 'Super 1 Foods', amount: 1755.93 },              // Square Bank
+  { label: 'Import Emporium', amount: 1354.31 },            // Square Bank
+  { label: 'Sunrise Supply', amount: 1049.16 },             // Austin Bank
+  { label: 'Murphy Atwal', amount: 338.63 },                // Square Bank
+  { label: 'Dallas Superstore', amount: 321.50 },           // Square Bank
+  { label: 'Tyler C-Store Wholesale', amount: 147.18 },     // Square Bank
+  { label: 'Star Supplies Milk', amount: 0 },               // May be in checks
+  { label: 'Smith Fiel', amount: 0 },                       // May be in checks
+  { label: 'Tyler Beverage', amount: 0 },                   // May be in checks
+  { label: 'Croissant Wholesale supplier', amount: 0 },     // May be in checks
+  { label: 'Hiland Milk company', amount: 0 },              // May be in checks
+  { label: 'Checks to Suppliers (uncat.)', amount: 65131.95 }, // Austin Bank checks
 ]
 
 // Expenses
+// Expenses (from Austin Bank + Square Bank + Southside 2025)
 const defaultExpenses = [
   // Rent & Facility
-  { label: 'Rent/Lease', amount: 0 },
+  { label: 'Rent/Lease (Metro)', amount: 12263.65 },        // Austin Bank
   { label: 'CAM Expenses & Property Tax', amount: 0 },
-  { label: 'Smith County Property Tax', amount: 0 },
+  { label: 'Smith County Vehicle Reg/Fees', amount: 226.84 }, // Square Bank
   { label: 'Business License FEE', amount: 0 },
   // Utilities
-  { label: 'Electricity', amount: 0 },
-  { label: 'Centralpoint Gas', amount: 0 },
-  { label: 'City of Tyler Water', amount: 0 },
-  { label: 'Internet/Office and Mobile Phones', amount: 0 },
+  { label: 'Electricity (TXU)', amount: 4276.72 },          // Austin ($2,910.79) + Square ($1,365.93)
+  { label: 'Centralpoint Gas / Propane', amount: 19.92 },   // Square Bank (Amerigas)
+  { label: 'City of Tyler Water', amount: 2012.34 },        // Square Bank
+  { label: 'AT&T / Phone / Internet', amount: 2639.89 },    // Square Bank
+  { label: 'Frontier Internet', amount: 524.94 },           // Square Bank
+  { label: 'VEXUS Internet', amount: 239.98 },              // Square Bank
   { label: 'Trash/Waste Removal', amount: 0 },
   // Insurance
-  { label: 'Business Insurance (General Liability)', amount: 0 },
+  { label: 'Insurance (Allstate)', amount: 3091.87 },       // Austin Bank
+  { label: 'Insurance (Next Gen Liability)', amount: 1719.82 }, // Square Bank
   { label: 'Workers Compensation Insurance', amount: 0 },
-  { label: 'Business Vehicle Insurance', amount: 0 },
   { label: 'Health Insurance Premiums', amount: 0 },
   // Payroll & Labor
-  { label: 'Employee Wages', amount: 0 },
+  { label: 'Drake Management (Payroll/Service)', amount: 49402.58 }, // Austin Bank
+  { label: 'Employee Wages (direct)', amount: 0 },
   { label: 'Payroll Taxes (SS, Medicare, FUTA)', amount: 0 },
-  // Maintenance & Repairs
-  { label: 'Building Repair', amount: 0 },
+  // Maintenance & Repairs (Lowe\'s, Home Depot, Harbor Freight)
+  { label: "Lowe's (Maintenance/Repairs)", amount: 3594.87 }, // Square Bank
+  { label: 'Home Depot', amount: 144.59 },                  // Square Bank
+  { label: 'Harbor Freight (Tools)', amount: 172.29 },      // Square Bank
   { label: 'Equipment Repair / Maintenance', amount: 0 },
   { label: 'HVAC Service', amount: 0 },
   { label: 'Pest Control', amount: 0 },
   // Equipment & Depreciation
   { label: 'Equipment Purchases (Section 179)', amount: 0 },
-  { label: 'Equipment Depreciation', amount: 0 },
   { label: 'POS System / Tablet', amount: 0 },
   // Supplies
   { label: 'Office Supplies', amount: 0 },
@@ -67,18 +78,16 @@ const defaultExpenses = [
   // Marketing & Sales
   { label: 'Advertising', amount: 0 },
   // Fees & Banking
-  { label: 'Merchant Credit Card FEE (Square)', amount: 13724.14 },
-  { label: 'Bank Fee and Interest', amount: 0 },
+  { label: 'Merchant Credit Card FEE (Square)', amount: 13724.14 }, // Square Sales CSV
+  { label: 'Bank Fees / NSF Charges', amount: 2370.00 },    // Austin Bank
+  { label: 'SBA EIDL Loan Payment', amount: 4080.00 },      // Austin Bank
   { label: 'Delivery/Freight Expense', amount: 0 },
   // Vehicle
-  { label: 'Business Mileage / Vehicle Expense', amount: 0 },
-  { label: 'Vehicle Maintenance (Business Use)', amount: 0 },
+  { label: 'Vehicle Maintenance (O\'Reilly, Butler)', amount: 278.91 }, // Square Bank
+  { label: 'Fuel (Business Use)', amount: 150.45 },         // Square Bank (Fresh Fuel + Exxon)
   // Other
   { label: 'Security System / Cameras', amount: 0 },
-  { label: 'Music Subscription (In-Store)', amount: 0 },
   { label: 'Employee Meals', amount: 0 },
-  { label: 'Training Costs', amount: 0 },
-  { label: 'Accounting Software (QuickBooks, etc.)', amount: 0 },
   { label: 'Other Expenses', amount: 0 },
 ]
 
