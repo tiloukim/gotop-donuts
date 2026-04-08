@@ -172,6 +172,21 @@ export default function IncomeStatement2025() {
     setArr(copy)
   }
 
+  const renameRow = (arr: any[], setArr: any, idx: number, newLabel: string) => {
+    const copy = [...arr]
+    copy[idx] = { ...copy[idx], label: newLabel }
+    setArr(copy)
+  }
+
+  const moveRow = (arr: any[], setArr: any, idx: number, dir: 'up' | 'down') => {
+    if (dir === 'up' && idx === 0) return
+    if (dir === 'down' && idx === arr.length - 1) return
+    const copy = [...arr]
+    const swapIdx = dir === 'up' ? idx - 1 : idx + 1
+    ;[copy[idx], copy[swapIdx]] = [copy[swapIdx], copy[idx]]
+    setArr(copy)
+  }
+
   const deleteRow = (arr: any[], setArr: any, idx: number) => {
     setArr(arr.filter((_: any, i: number) => i !== idx))
   }
@@ -199,8 +214,26 @@ export default function IncomeStatement2025() {
   }
 
   const sectionTitle: React.CSSProperties = { fontSize: 16, fontWeight: 700, color: '#2C3E6B', margin: '24px 0 12px', textTransform: 'uppercase', letterSpacing: 0.5 }
-  const rowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: 14 }
-  const inputStyle: React.CSSProperties = { width: 130, padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 14, textAlign: 'right' }
+  const inputStyle: React.CSSProperties = { width: 120, padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 14, textAlign: 'right' }
+  const btnStyle: React.CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '2px 4px', color: '#aaa' }
+
+  const EditableRow = ({ arr, setArr, idx, canDelete = true }: { arr: any[], setArr: any, idx: number, canDelete?: boolean }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontSize: 14 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <button onClick={() => moveRow(arr, setArr, idx, 'up')} style={{ ...btnStyle, fontSize: 10, lineHeight: 1 }} title="Move up">&#9650;</button>
+        <button onClick={() => moveRow(arr, setArr, idx, 'down')} style={{ ...btnStyle, fontSize: 10, lineHeight: 1 }} title="Move down">&#9660;</button>
+      </div>
+      <input
+        type="text" value={arr[idx].label}
+        onChange={e => renameRow(arr, setArr, idx, e.target.value)}
+        style={{ flex: 1, padding: '5px 8px', borderRadius: 6, border: '1px solid transparent', fontSize: 14, color: '#444', background: 'transparent' }}
+        onFocus={e => { e.currentTarget.style.border = '1px solid #2C3E6B'; e.currentTarget.style.background = '#fff' }}
+        onBlur={e => { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.background = 'transparent' }}
+      />
+      <input type="number" value={arr[idx].amount || ''} onChange={e => updateRow(arr, setArr, idx, Number(e.target.value) || 0)} style={inputStyle} placeholder="0.00" />
+      {canDelete && <button onClick={() => deleteRow(arr, setArr, idx)} style={{ ...btnStyle, color: '#ddd', fontSize: 16 }} title="Delete">&#x2715;</button>}
+    </div>
+  )
   const totalStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#2C3E6B', color: '#fff', borderRadius: 8, fontSize: 16, fontWeight: 700, marginTop: 8 }
   const subtotalStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', padding: '10px 16px', background: '#e8edf5', color: '#2C3E6B', borderRadius: 8, fontSize: 15, fontWeight: 700, marginTop: 8 }
 
@@ -250,11 +283,8 @@ export default function IncomeStatement2025() {
         {/* REVENUE */}
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e0e0e0', padding: '20px 24px', marginBottom: 16 }}>
           <div style={sectionTitle}>Revenue — Gross Sales</div>
-          {revenue.map((r, i) => (
-            <div key={i} style={rowStyle}>
-              <span style={{ color: '#444' }}>{r.label}</span>
-              <input type="number" value={r.amount || ''} onChange={e => updateRow(revenue, setRevenue, i, Number(e.target.value) || 0)} style={inputStyle} placeholder="0.00" />
-            </div>
+          {revenue.map((_, i) => (
+            <EditableRow key={i} arr={revenue} setArr={setRevenue} idx={i} canDelete={true} />
           ))}
           <div style={subtotalStyle}>
             <span>Total Revenue:</span>
@@ -265,12 +295,8 @@ export default function IncomeStatement2025() {
         {/* COST OF GOODS SOLD */}
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e0e0e0', padding: '20px 24px', marginBottom: 16 }}>
           <div style={sectionTitle}>Cost of Goods Sold</div>
-          {cogs.map((c, i) => (
-            <div key={i} style={rowStyle}>
-              <span style={{ color: '#444', flex: 1 }}>{c.label}</span>
-              <input type="number" value={c.amount || ''} onChange={e => updateRow(cogs, setCogs, i, Number(e.target.value) || 0)} style={inputStyle} placeholder="0.00" />
-              <button onClick={() => deleteRow(cogs, setCogs, i)} style={{ marginLeft: 8, background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', fontSize: 16 }}>&#x2715;</button>
-            </div>
+          {cogs.map((_, i) => (
+            <EditableRow key={i} arr={cogs} setArr={setCogs} idx={i} />
           ))}
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <input value={newCogsLabel} onChange={e => setNewCogsLabel(e.target.value)} placeholder="New supplier name" style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }} />
@@ -289,12 +315,8 @@ export default function IncomeStatement2025() {
         {/* EXPENSES */}
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e0e0e0', padding: '20px 24px', marginBottom: 16 }}>
           <div style={sectionTitle}>Expenses</div>
-          {expenses.map((e, i) => (
-            <div key={i} style={rowStyle}>
-              <span style={{ color: '#444', flex: 1 }}>{e.label}</span>
-              <input type="number" value={e.amount || ''} onChange={e2 => updateRow(expenses, setExpenses, i, Number(e2.target.value) || 0)} style={inputStyle} placeholder="0.00" />
-              <button onClick={() => deleteRow(expenses, setExpenses, i)} style={{ marginLeft: 8, background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', fontSize: 16 }}>&#x2715;</button>
-            </div>
+          {expenses.map((_, i) => (
+            <EditableRow key={i} arr={expenses} setArr={setExpenses} idx={i} />
           ))}
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <input value={newExpLabel} onChange={e => setNewExpLabel(e.target.value)} placeholder="New expense category" style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }} />
