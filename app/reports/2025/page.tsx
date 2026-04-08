@@ -7,9 +7,11 @@ const STORAGE_KEY = 'topdonut_reports_auth'
 
 // Revenue categories
 const defaultRevenue = [
-  { label: 'Credit Card', amount: 377648.90 },
-  { label: 'Cash', amount: 96789.42 },
-  { label: 'Cash App', amount: 629.98 },
+  { label: 'Square - Credit Card', amount: 377648.90 },
+  { label: 'Square - Cash', amount: 96789.42 },
+  { label: 'Square - Cash App', amount: 629.98 },
+  { label: 'DoorDash', amount: 32950.39 },
+  { label: 'Uber Eats', amount: 20505.96 },
 ]
 
 // Cost of Goods Sold (from Austin Bank + Square Bank 2025)
