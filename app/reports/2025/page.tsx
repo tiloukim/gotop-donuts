@@ -351,9 +351,10 @@ export default function IncomeStatement2025() {
 
       {/* Print styles */}
       <style>{`
+        @page { margin: 0.3in; size: auto; }
         @media print {
           .no-print { display: none !important; }
-          body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; }
           input[type="number"], input[type="text"] {
             border: none !important; background: transparent !important;
             padding: 0 !important; font-weight: 600 !important;
