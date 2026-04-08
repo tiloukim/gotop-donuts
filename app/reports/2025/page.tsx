@@ -217,21 +217,22 @@ export default function IncomeStatement2025() {
   const inputStyle: React.CSSProperties = { width: 120, padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 14, textAlign: 'right' }
   const btnStyle: React.CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '2px 4px', color: '#aaa' }
 
-  const EditableRow = ({ arr, setArr, idx, canDelete = true }: { arr: any[], setArr: any, idx: number, canDelete?: boolean }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontSize: 14 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+  const renderRow = (arr: any[], setArr: any, idx: number, canDelete = true) => (
+    <div key={`row-${idx}-${arr.length}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontSize: 14 }}>
+      <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         <button onClick={() => moveRow(arr, setArr, idx, 'up')} style={{ ...btnStyle, fontSize: 10, lineHeight: 1 }} title="Move up">&#9650;</button>
         <button onClick={() => moveRow(arr, setArr, idx, 'down')} style={{ ...btnStyle, fontSize: 10, lineHeight: 1 }} title="Move down">&#9660;</button>
       </div>
       <input
-        type="text" value={arr[idx].label}
-        onChange={e => renameRow(arr, setArr, idx, e.target.value)}
+        type="text"
+        defaultValue={arr[idx].label}
+        onBlur={e => { if (e.target.value !== arr[idx].label) renameRow(arr, setArr, idx, e.target.value) }}
+        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
         style={{ flex: 1, padding: '5px 8px', borderRadius: 6, border: '1px solid transparent', fontSize: 14, color: '#444', background: 'transparent' }}
         onFocus={e => { e.currentTarget.style.border = '1px solid #2C3E6B'; e.currentTarget.style.background = '#fff' }}
-        onBlur={e => { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.background = 'transparent' }}
       />
       <input type="number" value={arr[idx].amount || ''} onChange={e => updateRow(arr, setArr, idx, Number(e.target.value) || 0)} style={inputStyle} placeholder="0.00" />
-      {canDelete && <button onClick={() => deleteRow(arr, setArr, idx)} style={{ ...btnStyle, color: '#ddd', fontSize: 16 }} title="Delete">&#x2715;</button>}
+      {canDelete && <button className="no-print" onClick={() => deleteRow(arr, setArr, idx)} style={{ ...btnStyle, color: '#ddd', fontSize: 16 }} title="Delete">&#x2715;</button>}
     </div>
   )
   const totalStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#2C3E6B', color: '#fff', borderRadius: 8, fontSize: 16, fontWeight: 700, marginTop: 8 }
@@ -283,9 +284,7 @@ export default function IncomeStatement2025() {
         {/* REVENUE */}
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e0e0e0', padding: '20px 24px', marginBottom: 16 }}>
           <div style={sectionTitle}>Revenue — Gross Sales</div>
-          {revenue.map((_, i) => (
-            <EditableRow key={i} arr={revenue} setArr={setRevenue} idx={i} canDelete={true} />
-          ))}
+          {revenue.map((_, i) => renderRow(revenue, setRevenue, i, true))}
           <div style={subtotalStyle}>
             <span>Total Revenue:</span>
             <span>{fmt(totalRevenue)}</span>
@@ -295,9 +294,7 @@ export default function IncomeStatement2025() {
         {/* COST OF GOODS SOLD */}
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e0e0e0', padding: '20px 24px', marginBottom: 16 }}>
           <div style={sectionTitle}>Cost of Goods Sold</div>
-          {cogs.map((_, i) => (
-            <EditableRow key={i} arr={cogs} setArr={setCogs} idx={i} />
-          ))}
+          {cogs.map((_, i) => renderRow(cogs, setCogs, i))}
           <div className="no-print" style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <input value={newCogsLabel} onChange={e => setNewCogsLabel(e.target.value)} placeholder="New supplier name" style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }} />
             <button onClick={() => { if (newCogsLabel.trim()) { setCogs([...cogs, { label: newCogsLabel.trim(), amount: 0 }]); setNewCogsLabel('') } }} style={{ padding: '6px 14px', borderRadius: 6, background: '#2C3E6B', color: '#fff', border: 'none', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>+ Add</button>
@@ -315,9 +312,7 @@ export default function IncomeStatement2025() {
         {/* EXPENSES */}
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e0e0e0', padding: '20px 24px', marginBottom: 16 }}>
           <div style={sectionTitle}>Expenses</div>
-          {expenses.map((_, i) => (
-            <EditableRow key={i} arr={expenses} setArr={setExpenses} idx={i} />
-          ))}
+          {expenses.map((_, i) => renderRow(expenses, setExpenses, i))}
           <div className="no-print" style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <input value={newExpLabel} onChange={e => setNewExpLabel(e.target.value)} placeholder="New expense category" style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }} />
             <button onClick={() => { if (newExpLabel.trim()) { setExpenses([...expenses, { label: newExpLabel.trim(), amount: 0 }]); setNewExpLabel('') } }} style={{ padding: '6px 14px', borderRadius: 6, background: '#2C3E6B', color: '#fff', border: 'none', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>+ Add</button>
