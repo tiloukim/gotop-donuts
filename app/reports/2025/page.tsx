@@ -28,23 +28,57 @@ const defaultCOGS = [
 
 // Expenses
 const defaultExpenses = [
+  // Rent & Facility
   { label: 'Rent/Lease', amount: 0 },
   { label: 'CAM Expenses & Property Tax', amount: 0 },
-  { label: 'Insurance', amount: 0 },
-  { label: 'Building Repair', amount: 0 },
-  { label: 'City of Tyler Water', amount: 0 },
-  { label: 'Centralpoint Gas', amount: 0 },
-  { label: 'Electricity', amount: 0 },
-  { label: 'Internet/Office and Mobile Phones', amount: 0 },
-  { label: 'Office Supplies', amount: 0 },
-  { label: 'Smirth County Property Tax', amount: 0 },
+  { label: 'Smith County Property Tax', amount: 0 },
   { label: 'Business License FEE', amount: 0 },
-  { label: 'Delivery/Freight Expense', amount: 0 },
-  { label: 'Advertising', amount: 0 },
-  { label: 'Cleaning Supplies', amount: 0 },
+  // Utilities
+  { label: 'Electricity', amount: 0 },
+  { label: 'Centralpoint Gas', amount: 0 },
+  { label: 'City of Tyler Water', amount: 0 },
+  { label: 'Internet/Office and Mobile Phones', amount: 0 },
+  { label: 'Trash/Waste Removal', amount: 0 },
+  // Insurance
+  { label: 'Business Insurance (General Liability)', amount: 0 },
+  { label: 'Workers Compensation Insurance', amount: 0 },
+  { label: 'Business Vehicle Insurance', amount: 0 },
+  { label: 'Health Insurance Premiums', amount: 0 },
+  // Payroll & Labor
+  { label: 'Employee Wages', amount: 0 },
+  { label: 'Payroll Taxes (SS, Medicare, FUTA)', amount: 0 },
+  // Maintenance & Repairs
+  { label: 'Building Repair', amount: 0 },
+  { label: 'Equipment Repair / Maintenance', amount: 0 },
+  { label: 'HVAC Service', amount: 0 },
+  { label: 'Pest Control', amount: 0 },
+  // Equipment & Depreciation
+  { label: 'Equipment Purchases (Section 179)', amount: 0 },
+  { label: 'Equipment Depreciation', amount: 0 },
+  { label: 'POS System / Tablet', amount: 0 },
+  // Supplies
   { label: 'Office Supplies', amount: 0 },
+  { label: 'Cleaning Supplies', amount: 0 },
+  { label: 'Uniforms / Work Clothing', amount: 0 },
+  // Professional Services
+  { label: 'Accountant / Bookkeeper Fees', amount: 0 },
+  { label: 'Tax Preparation Fees', amount: 0 },
+  { label: 'Legal Fees', amount: 0 },
+  // Marketing & Sales
+  { label: 'Advertising', amount: 0 },
+  // Fees & Banking
   { label: 'Merchant Credit Card FEE (Square)', amount: 13724.14 },
   { label: 'Bank Fee and Interest', amount: 0 },
+  { label: 'Delivery/Freight Expense', amount: 0 },
+  // Vehicle
+  { label: 'Business Mileage / Vehicle Expense', amount: 0 },
+  { label: 'Vehicle Maintenance (Business Use)', amount: 0 },
+  // Other
+  { label: 'Security System / Cameras', amount: 0 },
+  { label: 'Music Subscription (In-Store)', amount: 0 },
+  { label: 'Employee Meals', amount: 0 },
+  { label: 'Training Costs', amount: 0 },
+  { label: 'Accounting Software (QuickBooks, etc.)', amount: 0 },
   { label: 'Other Expenses', amount: 0 },
 ]
 
