@@ -248,7 +248,7 @@ export default function IncomeStatement2025() {
               <div style={{ fontSize: 16, fontWeight: 500, opacity: 0.9 }}>Income Statement</div>
               <div style={{ fontSize: 13, opacity: 0.7, marginTop: 4 }}>{MONTHS[fromMonth]} - {MONTHS[toMonth]} 2025</div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="no-print" style={{ display: 'flex', gap: 8 }}>
               <select value={fromMonth} onChange={e => setFromMonth(Number(e.target.value))} style={{ padding: '6px 10px', borderRadius: 6, border: 'none', fontSize: 13 }}>
                 {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
@@ -298,7 +298,7 @@ export default function IncomeStatement2025() {
           {cogs.map((_, i) => (
             <EditableRow key={i} arr={cogs} setArr={setCogs} idx={i} />
           ))}
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <div className="no-print" style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <input value={newCogsLabel} onChange={e => setNewCogsLabel(e.target.value)} placeholder="New supplier name" style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }} />
             <button onClick={() => { if (newCogsLabel.trim()) { setCogs([...cogs, { label: newCogsLabel.trim(), amount: 0 }]); setNewCogsLabel('') } }} style={{ padding: '6px 14px', borderRadius: 6, background: '#2C3E6B', color: '#fff', border: 'none', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>+ Add</button>
           </div>
@@ -318,7 +318,7 @@ export default function IncomeStatement2025() {
           {expenses.map((_, i) => (
             <EditableRow key={i} arr={expenses} setArr={setExpenses} idx={i} />
           ))}
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <div className="no-print" style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <input value={newExpLabel} onChange={e => setNewExpLabel(e.target.value)} placeholder="New expense category" style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }} />
             <button onClick={() => { if (newExpLabel.trim()) { setExpenses([...expenses, { label: newExpLabel.trim(), amount: 0 }]); setNewExpLabel('') } }} style={{ padding: '6px 14px', borderRadius: 6, background: '#2C3E6B', color: '#fff', border: 'none', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>+ Add</button>
           </div>
@@ -335,7 +335,7 @@ export default function IncomeStatement2025() {
         </div>
 
         {/* Print button */}
-        <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'center' }}>
+        <div className="no-print" style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'center' }}>
           <button onClick={() => window.print()} style={{ padding: '10px 24px', borderRadius: 8, background: '#2C3E6B', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
             Print / Save PDF
           </button>
@@ -344,10 +344,27 @@ export default function IncomeStatement2025() {
           </button>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: '#aaa', paddingBottom: 40 }}>
+        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: '#aaa', paddingBottom: 40 }} className="no-print">
           Kimco LLC — Top Donut Income Statement 2025 — Data saved locally
         </div>
       </div>
+
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          input[type="number"], input[type="text"] {
+            border: none !important; background: transparent !important;
+            padding: 0 !important; font-weight: 600 !important;
+            -moz-appearance: textfield;
+          }
+          input[type="number"]::-webkit-outer-spin-button,
+          input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+          button { display: none !important; }
+          div[style*="gap: 8"] > input[type="text"] { display: none !important; }
+        }
+      `}</style>
     </div>
   )
 }
