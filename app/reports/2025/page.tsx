@@ -329,6 +329,104 @@ export default function IncomeStatement2025() {
           <span>{fmt(netProfit)}</span>
         </div>
 
+        {/* TAX ESTIMATE — S Corp, MFJ */}
+        {(() => {
+          // S Corp: Net profit flows to personal return as ordinary income
+          // Owner's reasonable salary should be separate (already in Drake Management/payroll)
+          // Remaining profit = distribution (no SE tax, just income tax)
+          const taxableIncome = netProfit
+
+          // 2025 MFJ Standard Deduction
+          const standardDeduction = 30000
+          // QBI Deduction (20% of qualified business income for S Corp pass-through)
+          const qbiDeduction = Math.round(taxableIncome * 0.20)
+
+          const adjustedIncome = Math.max(0, taxableIncome - standardDeduction - qbiDeduction)
+
+          // 2025 MFJ Tax Brackets
+          const brackets = [
+            { limit: 23850, rate: 0.10 },
+            { limit: 96950, rate: 0.12 },
+            { limit: 206700, rate: 0.22 },
+            { limit: 394600, rate: 0.24 },
+            { limit: 501050, rate: 0.32 },
+            { limit: 751600, rate: 0.35 },
+            { limit: Infinity, rate: 0.37 },
+          ]
+          let federalTax = 0
+          let remaining = adjustedIncome
+          let prevLimit = 0
+          for (const b of brackets) {
+            const taxable = Math.min(remaining, b.limit - prevLimit)
+            if (taxable <= 0) break
+            federalTax += taxable * b.rate
+            remaining -= taxable
+            prevLimit = b.limit
+          }
+          federalTax = Math.round(federalTax)
+
+          // Credits
+          const childTaxCredit = 2000 // 1 child under 17
+          const dependentCredit = 500  // 1 other dependent (if qualifying)
+          const totalCredits = childTaxCredit + dependentCredit
+
+          const federalOwed = Math.max(0, federalTax - totalCredits)
+
+          // Texas: No state income tax
+          const stateTax = 0
+
+          // Self-employment tax on owner's salary portion
+          // S Corp owners pay FICA on salary only (already withheld via payroll)
+          // The Drake Management payments likely include employer FICA
+          const estimatedFICA = Math.round(49402.58 * 0.153) // 15.3% on salary
+
+          const totalEstTax = federalOwed + estimatedFICA
+
+          // Quarterly estimates
+          const quarterly = Math.round(federalOwed / 4)
+
+          return (
+            <div style={{ background: '#FAEEDA', border: '1px solid #FAC775', borderRadius: 12, padding: '20px 24px', marginTop: 20 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#633806', marginBottom: 16 }}>2025 Estimated Tax — S Corp (Married Filing Jointly)</div>
+
+              <div style={{ fontSize: 13, lineHeight: 2, color: '#1a1a1a' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(186,117,23,0.2)' }}><span>Net Profit (from above)</span><span>{fmt(taxableIncome)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(186,117,23,0.2)' }}><span>Standard Deduction (MFJ)</span><span style={{ color: '#085041' }}>-{fmt(standardDeduction)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(186,117,23,0.2)' }}><span>QBI Deduction (20% pass-through)</span><span style={{ color: '#085041' }}>-{fmt(qbiDeduction)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(186,117,23,0.2)', fontWeight: 600 }}><span>Taxable Income</span><span>{fmt(adjustedIncome)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(186,117,23,0.2)' }}><span>Federal Income Tax (brackets)</span><span style={{ color: '#D85A30' }}>{fmt(federalTax)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(186,117,23,0.2)' }}><span>Child Tax Credit (1 child, age 16)</span><span style={{ color: '#085041' }}>-{fmt(childTaxCredit)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(186,117,23,0.2)' }}><span>Other Dependent Credit (1 qualifying relative)</span><span style={{ color: '#085041' }}>-{fmt(dependentCredit)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(186,117,23,0.2)', fontWeight: 700 }}><span>Federal Tax Owed</span><span style={{ color: '#D85A30' }}>{fmt(federalOwed)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(186,117,23,0.2)' }}><span>Texas State Tax</span><span style={{ color: '#085041' }}>$0.00 (no state tax)</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(186,117,23,0.2)' }}><span>FICA on Owner Salary ($49,402)</span><span style={{ color: '#D85A30' }}>{fmt(estimatedFICA)}</span></div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#633806', color: '#fff', borderRadius: 8, fontSize: 18, fontWeight: 700, marginTop: 12 }}>
+                <span>Total Estimated Tax</span>
+                <span>{fmt(totalEstTax)}</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+                <div style={{ background: '#fff', borderRadius: 8, padding: 12, textAlign: 'center', border: '1px solid #FAC775' }}>
+                  <div style={{ fontSize: 11, color: '#633806', fontWeight: 500, textTransform: 'uppercase' }}>Quarterly Estimate</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: '#633806' }}>{fmt(quarterly)}</div>
+                  <div style={{ fontSize: 11, color: '#BA7517' }}>Due: Apr 15, Jun 15, Sep 15, Jan 15</div>
+                </div>
+                <div style={{ background: '#fff', borderRadius: 8, padding: 12, textAlign: 'center', border: '1px solid #FAC775' }}>
+                  <div style={{ fontSize: 11, color: '#633806', fontWeight: 500, textTransform: 'uppercase' }}>Effective Tax Rate</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: '#633806' }}>{taxableIncome > 0 ? Math.round(totalEstTax / taxableIncome * 100) : 0}%</div>
+                  <div style={{ fontSize: 11, color: '#BA7517' }}>Federal + FICA combined</div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 12, fontSize: 11, color: '#BA7517', lineHeight: 1.6 }}>
+                <strong>Notes:</strong> This is an estimate only. S Corp profits pass through to your personal return. FICA is only on reasonable salary (paid via payroll). Remaining profit distributed as dividends (no SE tax). QBI deduction may vary based on your total income. Consult your tax professional for exact figures. The elder dependent credit ($500) applies only if he qualifies — must earn under $5,050/year and you provide over half his support.
+              </div>
+            </div>
+          )
+        })()}
+
         {/* Print button */}
         <div className="no-print" style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'center' }}>
           <button onClick={() => window.print()} style={{ padding: '10px 24px', borderRadius: 8, background: '#2C3E6B', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
