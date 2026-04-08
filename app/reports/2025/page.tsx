@@ -15,8 +15,8 @@ const defaultRevenue = [
 // Cost of Goods Sold (from Austin Bank + Square Bank 2025)
 const defaultCOGS = [
   { label: 'Dawn Food Products', amount: 46027.44 },       // Austin Bank
-  { label: "Sam's Club", amount: 14381.72 },                // Square Bank
-  { label: 'Walmart', amount: 8812.06 },                    // Square ($8,767.62) + Southside ($44.44)
+  { label: "Sam's Club", amount: 14762.48 },                // Square ($14,381.72) + CapOne ($380.76)
+  { label: 'Walmart', amount: 8841.45 },                    // Square ($8,767.62) + Southside ($44.44) + CapOne ($29.39)
   { label: "Brookshire's", amount: 3585.78 },                // Square Bank
   { label: 'Super 1 Foods', amount: 1755.93 },              // Square Bank
   { label: 'Import Emporium', amount: 1354.31 },            // Square Bank
@@ -58,8 +58,8 @@ const defaultExpenses = [
   { label: 'Employee Wages (direct)', amount: 0 },
   { label: 'Payroll Taxes (SS, Medicare, FUTA)', amount: 0 },
   // Maintenance & Repairs (Lowe\'s, Home Depot, Harbor Freight)
-  { label: "Lowe's (Maintenance/Repairs)", amount: 3594.87 }, // Square Bank
-  { label: 'Home Depot', amount: 144.59 },                  // Square Bank
+  { label: "Lowe's (Maintenance/Repairs)", amount: 3835.53 }, // Square ($3,594.87) + CapOne ($240.66)
+  { label: 'Home Depot', amount: 718.83 },                  // Square ($144.59) + CapOne ($574.24)
   { label: 'Harbor Freight (Tools)', amount: 172.29 },      // Square Bank
   { label: 'Equipment Repair / Maintenance', amount: 0 },
   { label: 'HVAC Service', amount: 0 },
@@ -82,12 +82,15 @@ const defaultExpenses = [
   { label: 'Bank Fees / NSF Charges', amount: 2370.00 },    // Austin Bank
   { label: 'SBA EIDL Loan Payment', amount: 4080.00 },      // Austin Bank
   { label: 'Delivery/Freight Expense', amount: 0 },
+  { label: 'Credit Card Interest (Capital One)', amount: 176.91 }, // CapOne
   // Vehicle
   { label: 'Vehicle Maintenance (O\'Reilly, Butler)', amount: 278.91 }, // Square Bank
-  { label: 'Fuel (Business Use)', amount: 150.45 },         // Square Bank (Fresh Fuel + Exxon)
+  { label: 'Fuel (Business Use)', amount: 170.08 },         // Square ($150.45) + CapOne ($19.63)
   // Other
-  { label: 'Security System / Cameras', amount: 0 },
-  { label: 'Employee Meals', amount: 0 },
+  { label: 'SimpliSafe (Security System)', amount: 311.67 }, // CapOne
+  { label: 'PayPal JetImpex (Supplies)', amount: 169.00 },  // CapOne
+  { label: 'Orthodontist (Mack & Hansen)', amount: 300.00 }, // CapOne
+  { label: 'Employee Meals (Zaza Thai)', amount: 159.58 },  // CapOne
   { label: 'Other Expenses', amount: 0 },
 ]
 
