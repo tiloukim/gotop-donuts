@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 const PASS = 'Dara$$$911'
 const STORAGE_KEY = 'topdonut_reports_auth'
@@ -22,6 +25,33 @@ interface Transaction { id: string; date: string; desc: string; amount: number; 
 interface MileageEntry { id: string; date: string; from: string; to: string; miles: number; purpose: string }
 
 const emptyMonth = () => ({ square: 0, doordash: 0, ubereats: 0, cash: 0, otherIncome: 0 })
+
+function SortableCatRow({ cat, index, total, count, isEditing, onRename, onCancelEdit, onStartEdit, onDelete, inputStyle }: {
+  cat: string; index: number; total: number; count: number; isEditing: boolean;
+  onRename: (nw: string) => void; onCancelEdit: () => void; onStartEdit: () => void; onDelete: () => void; inputStyle: React.CSSProperties
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1,
+    display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px',
+    borderBottom: index < total - 1 ? '1px solid #f0f0f0' : 'none',
+    background: isDragging ? '#e8edf5' : index % 2 === 0 ? '#fff' : '#fafafa' }
+  return (
+    <div ref={setNodeRef} style={style}>
+      <span {...attributes} {...listeners} style={{ cursor: 'grab', color: '#bbb', fontSize: 16, userSelect: 'none', touchAction: 'none' }}>☰</span>
+      {isEditing ? (
+        <input defaultValue={cat} autoFocus
+          onKeyDown={e => { if (e.key === 'Enter') { const nw = (e.target as HTMLInputElement).value.trim(); if (nw && nw !== cat) onRename(nw); else onCancelEdit() } else if (e.key === 'Escape') onCancelEdit() }}
+          onBlur={e => { const nw = e.target.value.trim(); if (nw && nw !== cat) onRename(nw); else onCancelEdit() }}
+          style={{ ...inputStyle, flex: 1, fontSize: 13 }} />
+      ) : (
+        <span style={{ flex: 1, fontSize: 13 }}>{cat}</span>
+      )}
+      {count > 0 && <span style={{ fontSize: 11, color: '#888', background: '#f0f0f0', padding: '2px 8px', borderRadius: 10 }}>{count}</span>}
+      <button onClick={onStartEdit} title="Rename" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 2 }}>✏️</button>
+      <button onClick={onDelete} title="Delete" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 2, color: '#D85A30' }}>🗑️</button>
+    </div>
+  )
+}
 
 export default function Bookkeeping2026() {
   const [authed, setAuthed] = useState(false)
@@ -51,6 +81,7 @@ export default function Bookkeeping2026() {
   const [categories, setCategories] = useState<string[]>([...EXPENSE_CATS])
   const [showCatManager, setShowCatManager] = useState(false)
   const [newCatName, setNewCatName] = useState('')
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }))
 
   useEffect(() => { if (localStorage.getItem(STORAGE_KEY) === PASS) setAuthed(true) }, [])
 
@@ -393,26 +424,20 @@ export default function Bookkeeping2026() {
                 <button onClick={() => { const n = newCatName.trim(); if (n && !categories.includes(n)) { setCategories(p => [...p, n]); setNewCatName('') } }} style={{ padding: '8px 16px', borderRadius: 6, background: '#085041', color: '#fff', fontWeight: 600, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>+ Add</button>
               </div>
               {/* List */}
-              <div style={{ border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
-                {categories.map((cat, i) => {
-                  const count = transactions.filter(t => t.category === cat).length
-                  return <div key={cat + i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: i < categories.length - 1 ? '1px solid #f0f0f0' : 'none', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                    {editingCat && editCatName === cat ? (
-                      <input defaultValue={cat} autoFocus onKeyDown={e => { if (e.key === 'Enter') { const nw = (e.target as HTMLInputElement).value.trim(); if (nw && nw !== cat) { setCategories(p => p.map(c => c === cat ? nw : c)); setTransactions(p => p.map(t => t.category === cat ? { ...t, category: nw } : t)); if (txCat === cat) setTxCat(nw) } setEditingCat(false); setEditCatName('') } else if (e.key === 'Escape') { setEditingCat(false); setEditCatName('') } }}
-                        onBlur={e => { const nw = e.target.value.trim(); if (nw && nw !== cat) { setCategories(p => p.map(c => c === cat ? nw : c)); setTransactions(p => p.map(t => t.category === cat ? { ...t, category: nw } : t)); if (txCat === cat) setTxCat(nw) } setEditingCat(false); setEditCatName('') }}
-                        style={{ ...is, flex: 1, fontSize: 13 }} />
-                    ) : (
-                      <span style={{ flex: 1, fontSize: 13 }}>{cat}</span>
-                    )}
-                    {count > 0 && <span style={{ fontSize: 11, color: '#888', background: '#f0f0f0', padding: '2px 8px', borderRadius: 10 }}>{count}</span>}
-                    <button disabled={i === 0} onClick={() => setCategories(p => { const a = [...p]; [a[i-1], a[i]] = [a[i], a[i-1]]; return a })} title="Move up" style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', fontSize: 14, padding: 2, opacity: i === 0 ? 0.3 : 1 }}>▲</button>
-                    <button disabled={i === categories.length - 1} onClick={() => setCategories(p => { const a = [...p]; [a[i], a[i+1]] = [a[i+1], a[i]]; return a })} title="Move down" style={{ background: 'none', border: 'none', cursor: i === categories.length - 1 ? 'default' : 'pointer', fontSize: 14, padding: 2, opacity: i === categories.length - 1 ? 0.3 : 1 }}>▼</button>
-                    <button onClick={() => { setEditCatName(cat); setEditingCat(true) }} title="Rename" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 2 }}>✏️</button>
-                    <button onClick={() => { if (count > 0) { if (!confirm(`"${cat}" has ${count} transaction(s). Delete category and move them to "Other"?`)) return; setTransactions(p => p.map(t => t.category === cat ? { ...t, category: 'Other' } : t)) } setCategories(p => p.filter(c => c !== cat)); if (txCat === cat) setTxCat(categories[0] || 'Other') }} title="Delete" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 2, color: '#D85A30' }}>🗑️</button>
+              <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(e: DragEndEvent) => { const { active, over } = e; if (over && active.id !== over.id) { setCategories(prev => { const oi = prev.indexOf(active.id as string); const ni = prev.indexOf(over.id as string); return arrayMove(prev, oi, ni) }) } }}>
+                <SortableContext items={categories} strategy={verticalListSortingStrategy}>
+                  <div style={{ border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
+                    {categories.map((cat, i) => <SortableCatRow key={cat} cat={cat} index={i} total={categories.length} count={transactions.filter(t => t.category === cat).length}
+                      isEditing={editingCat && editCatName === cat}
+                      onRename={(nw) => { setCategories(p => p.map(c => c === cat ? nw : c)); setTransactions(p => p.map(t => t.category === cat ? { ...t, category: nw } : t)); if (txCat === cat) setTxCat(nw); setEditingCat(false); setEditCatName('') }}
+                      onCancelEdit={() => { setEditingCat(false); setEditCatName('') }}
+                      onStartEdit={() => { setEditCatName(cat); setEditingCat(true) }}
+                      onDelete={() => { const count = transactions.filter(t => t.category === cat).length; if (count > 0) { if (!confirm(`"${cat}" has ${count} transaction(s). Delete and move to "Other"?`)) return; setTransactions(p => p.map(t => t.category === cat ? { ...t, category: 'Other' } : t)) } setCategories(p => p.filter(c => c !== cat)); if (txCat === cat) setTxCat(categories[0] || 'Other') }}
+                      inputStyle={is} />)}
                   </div>
-                })}
-              </div>
-              <div style={{ fontSize: 11, color: '#888', marginTop: 12 }}>▲▼ reorder · ✏️ rename · 🗑️ delete · Click Save after to keep changes.</div>
+                </SortableContext>
+              </DndContext>
+              <div style={{ fontSize: 11, color: '#888', marginTop: 12 }}>Drag ☰ to reorder · ✏️ rename · 🗑️ delete · Click Save after.</div>
             </div>
           </div>}
         </>}
