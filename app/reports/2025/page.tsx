@@ -186,7 +186,7 @@ export default function IncomeStatement2025() {
       })
       if (res.ok) {
         setLastSaved(new Date().toLocaleString())
-        alert('Saved to server!')
+        alert('Saved!')
       } else {
         alert('Failed to save')
       }
@@ -476,7 +476,7 @@ export default function IncomeStatement2025() {
         <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20, alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={saveToServer} disabled={saving} style={{ padding: '12px 28px', borderRadius: 8, background: saving ? '#aaa' : '#085041', color: '#fff', border: 'none', fontSize: 15, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}>
-              {saving ? 'Saving...' : '💾 Save to Server'}
+              {saving ? 'Saving...' : '💾 Save'}
             </button>
             <button onClick={() => window.print()} style={{ padding: '12px 24px', borderRadius: 8, background: '#2C3E6B', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
               Print / Save PDF
