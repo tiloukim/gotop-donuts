@@ -121,34 +121,78 @@ export default function IncomeStatement2025() {
 
   // Load/save
   const DATA_KEY = 'topdonut_income_2025'
+  const REPORT_ID = 'income-2025'
+  const [saving, setSaving] = useState(false)
+  const [lastSaved, setLastSaved] = useState<string | null>(null)
+  const [serverLoaded, setServerLoaded] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved === PASS) setAuthed(true)
   }, [])
 
+  // Load from server first, fallback to localStorage
   useEffect(() => {
     if (!authed) return
-    const saved = localStorage.getItem(DATA_KEY)
-    if (saved) {
-      try {
-        const d = JSON.parse(saved)
-        if (d.revenue) setRevenue(d.revenue)
-        if (d.cogs) setCogs(d.cogs)
-        if (d.expenses) setExpenses(d.expenses)
-        if (d.fromMonth !== undefined) setFromMonth(d.fromMonth)
-        if (d.toMonth !== undefined) setToMonth(d.toMonth)
-      } catch {}
-    }
+    fetch(`/api/report?id=${REPORT_ID}`).then(r => r.json()).then(d => {
+      if (d.data) {
+        if (d.data.revenue) setRevenue(d.data.revenue)
+        if (d.data.cogs) setCogs(d.data.cogs)
+        if (d.data.expenses) setExpenses(d.data.expenses)
+        if (d.data.fromMonth !== undefined) setFromMonth(d.data.fromMonth)
+        if (d.data.toMonth !== undefined) setToMonth(d.data.toMonth)
+        setLastSaved(d.updated_at ? new Date(d.updated_at).toLocaleString() : null)
+        setServerLoaded(true)
+        return
+      }
+      // Fallback to localStorage
+      const saved = localStorage.getItem(DATA_KEY)
+      if (saved) {
+        try {
+          const ld = JSON.parse(saved)
+          if (ld.revenue) setRevenue(ld.revenue)
+          if (ld.cogs) setCogs(ld.cogs)
+          if (ld.expenses) setExpenses(ld.expenses)
+          if (ld.fromMonth !== undefined) setFromMonth(ld.fromMonth)
+          if (ld.toMonth !== undefined) setToMonth(ld.toMonth)
+        } catch {}
+      }
+      setServerLoaded(true)
+    }).catch(() => {
+      // Server failed, use localStorage
+      const saved = localStorage.getItem(DATA_KEY)
+      if (saved) try { const ld = JSON.parse(saved); if (ld.revenue) setRevenue(ld.revenue); if (ld.cogs) setCogs(ld.cogs); if (ld.expenses) setExpenses(ld.expenses) } catch {}
+      setServerLoaded(true)
+    })
   }, [authed])
 
-  const saveData = () => {
+  // Auto-save to localStorage on every change
+  const saveLocal = () => {
     localStorage.setItem(DATA_KEY, JSON.stringify({ revenue, cogs, expenses, fromMonth, toMonth }))
   }
 
   useEffect(() => {
-    if (authed) saveData()
-  }, [revenue, cogs, expenses, fromMonth, toMonth, authed])
+    if (authed && serverLoaded) saveLocal()
+  }, [revenue, cogs, expenses, fromMonth, toMonth, authed, serverLoaded])
+
+  // Save to server
+  const saveToServer = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: REPORT_ID, data: { revenue, cogs, expenses, fromMonth, toMonth } }),
+      })
+      if (res.ok) {
+        setLastSaved(new Date().toLocaleString())
+        alert('Saved to server!')
+      } else {
+        alert('Failed to save')
+      }
+    } catch { alert('Failed to save') }
+    setSaving(false)
+  }
 
   const login = () => {
     if (password === PASS) {
@@ -428,13 +472,19 @@ export default function IncomeStatement2025() {
         })()}
 
         {/* Print button */}
-        <div className="no-print" style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'center' }}>
-          <button onClick={() => window.print()} style={{ padding: '10px 24px', borderRadius: 8, background: '#2C3E6B', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-            Print / Save PDF
-          </button>
-          <button onClick={() => { if (confirm('Reset all data to zero?')) { setRevenue(defaultRevenue.map(r => ({ ...r }))); setCogs(defaultCOGS.map(c => ({ ...c }))); setExpenses(defaultExpenses.map(e => ({ ...e }))) } }} style={{ padding: '10px 24px', borderRadius: 8, background: '#fff', color: '#D85A30', border: '1px solid #D85A30', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-            Reset
-          </button>
+        <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={saveToServer} disabled={saving} style={{ padding: '12px 28px', borderRadius: 8, background: saving ? '#aaa' : '#085041', color: '#fff', border: 'none', fontSize: 15, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}>
+              {saving ? 'Saving...' : '💾 Save to Server'}
+            </button>
+            <button onClick={() => window.print()} style={{ padding: '12px 24px', borderRadius: 8, background: '#2C3E6B', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+              Print / Save PDF
+            </button>
+            <button onClick={() => { if (confirm('Reset all data to zero?')) { setRevenue(defaultRevenue.map(r => ({ ...r }))); setCogs(defaultCOGS.map(c => ({ ...c }))); setExpenses(defaultExpenses.map(e => ({ ...e }))) } }} style={{ padding: '12px 24px', borderRadius: 8, background: '#fff', color: '#D85A30', border: '1px solid #D85A30', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+              Reset
+            </button>
+          </div>
+          {lastSaved && <div style={{ fontSize: 12, color: '#888' }}>Last saved: {lastSaved}</div>}
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: '#aaa', paddingBottom: 40 }} className="no-print">
