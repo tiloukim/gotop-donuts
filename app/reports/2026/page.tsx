@@ -405,12 +405,14 @@ export default function Bookkeeping2026() {
                       <span style={{ flex: 1, fontSize: 13 }}>{cat}</span>
                     )}
                     {count > 0 && <span style={{ fontSize: 11, color: '#888', background: '#f0f0f0', padding: '2px 8px', borderRadius: 10 }}>{count}</span>}
+                    <button disabled={i === 0} onClick={() => setCategories(p => { const a = [...p]; [a[i-1], a[i]] = [a[i], a[i-1]]; return a })} title="Move up" style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', fontSize: 14, padding: 2, opacity: i === 0 ? 0.3 : 1 }}>▲</button>
+                    <button disabled={i === categories.length - 1} onClick={() => setCategories(p => { const a = [...p]; [a[i], a[i+1]] = [a[i+1], a[i]]; return a })} title="Move down" style={{ background: 'none', border: 'none', cursor: i === categories.length - 1 ? 'default' : 'pointer', fontSize: 14, padding: 2, opacity: i === categories.length - 1 ? 0.3 : 1 }}>▼</button>
                     <button onClick={() => { setEditCatName(cat); setEditingCat(true) }} title="Rename" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 2 }}>✏️</button>
                     <button onClick={() => { if (count > 0) { if (!confirm(`"${cat}" has ${count} transaction(s). Delete category and move them to "Other"?`)) return; setTransactions(p => p.map(t => t.category === cat ? { ...t, category: 'Other' } : t)) } setCategories(p => p.filter(c => c !== cat)); if (txCat === cat) setTxCat(categories[0] || 'Other') }} title="Delete" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 2, color: '#D85A30' }}>🗑️</button>
                   </div>
                 })}
               </div>
-              <div style={{ fontSize: 11, color: '#888', marginTop: 12 }}>Click ✏️ to rename, 🗑️ to delete. Click Save after to keep changes.</div>
+              <div style={{ fontSize: 11, color: '#888', marginTop: 12 }}>▲▼ reorder · ✏️ rename · 🗑️ delete · Click Save after to keep changes.</div>
             </div>
           </div>}
         </>}
