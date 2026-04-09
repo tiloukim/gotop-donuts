@@ -229,30 +229,24 @@ export default function Bookkeeping2026() {
       }
 
       // 3. Extract total amount — prioritize TOTAL at bottom of receipt
-      let amount = ''
-      const totalPatterns = [
-        /GRAND\s*TOTAL\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /TOTAL\s*INVOICE\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /TOTAL\s*DUE\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /TOTAL\s*SALE\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /TOTAL\s*PURCHASE\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /TOTAL\s*AMOUNT\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /AMOUNT\s*DUE\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /AMOUNT\s*OWED\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /BALANCE\s*DUE\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /SUB\s*-?\s*TOTAL\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /SUBTOTAL\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /(?:VISA|MASTERCARD|DEBIT|CREDIT|AMEX)\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /TEND(?:ER)?\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /NET\s*(?:TOTAL|DUE|AMOUNT)\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
-        /TOTAL\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+      // Amount pattern: handles 1,489.25 / 1.489.25 / 1 489.25 / 489.25 (OCR may mangle commas)
+      const AMT = '(\\d{1,3}(?:[,\\s.]\\d{3})*\\.\\d{2}|\\d+\\.\\d{2})'
+      const totalKeywords = [
+        'GRAND\\s*TOTAL', 'TOTAL\\s*INVOICE', 'TOTAL\\s*DUE', 'TOTAL\\s*SALE',
+        'TOTAL\\s*PURCHASE', 'TOTAL\\s*AMOUNT', 'AMOUNT\\s*DUE', 'AMOUNT\\s*OWED',
+        'BALANCE\\s*DUE', 'SUB\\s*-?\\s*TOTAL', 'SUBTOTAL',
+        '(?:VISA|MASTERCARD|DEBIT|CREDIT|AMEX)', 'TEND(?:ER)?',
+        'NET\\s*(?:TOTAL|DUE|AMOUNT)', 'TOTAL'
       ]
+      const totalPatterns = totalKeywords.map(kw => new RegExp(kw + '[:\\s]*\\$?\\s*' + AMT, 'i'))
+      const parseAmt = (raw: string) => parseFloat(raw.replace(/[,\s]/g, '').replace(/\.(?=\d{3}\.)/g, ''))
+      let amount = ''
       // Search from bottom up (totals are usually near the end)
       const reversedLines = [...lines].reverse()
       for (const line of reversedLines) {
         for (const pat of totalPatterns) {
           const m = line.match(pat)
-          if (m) { amount = m[1].replace(/,/g, ''); break }
+          if (m) { amount = parseAmt(m[1]).toFixed(2); break }
         }
         if (amount) break
       }
@@ -260,9 +254,9 @@ export default function Bookkeeping2026() {
       if (!amount) {
         let maxVal = 0
         for (const line of lines) {
-          const matches = line.match(/\$?\s*(\d+\.\d{2})/g)
+          const matches = line.match(/\$?\s*(\d{1,3}(?:[,\s.]\d{3})*\.\d{2})/g)
           if (matches) for (const match of matches) {
-            const v = parseFloat(match.replace(/[\$\s,]/g, ''))
+            const v = parseAmt(match.replace(/^\$?\s*/, ''))
             if (v > maxVal && v < 50000) { maxVal = v; amount = v.toFixed(2) }
           }
         }
