@@ -48,6 +48,9 @@ export default function Bookkeeping2026() {
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [editingCat, setEditingCat] = useState(false)
   const [editCatName, setEditCatName] = useState('')
+  const [categories, setCategories] = useState<string[]>([...EXPENSE_CATS])
+  const [showCatManager, setShowCatManager] = useState(false)
+  const [newCatName, setNewCatName] = useState('')
 
   useEffect(() => { if (localStorage.getItem(STORAGE_KEY) === PASS) setAuthed(true) }, [])
 
@@ -58,6 +61,7 @@ export default function Bookkeeping2026() {
         if (d.data.monthlyIncome) setMonthlyIncome(d.data.monthlyIncome)
         if (d.data.transactions) setTransactions(d.data.transactions)
         if (d.data.mileage) setMileage(d.data.mileage)
+        if (d.data.categories) setCategories(d.data.categories)
         setLastSaved(d.updated_at ? new Date(d.updated_at).toLocaleString() : null)
       }
     }).catch(() => {})
@@ -66,7 +70,7 @@ export default function Bookkeeping2026() {
   const saveToServer = async () => {
     setSaving(true)
     const res = await fetch('/api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: REPORT_ID, data: { monthlyIncome, transactions, mileage } }) })
+      body: JSON.stringify({ id: REPORT_ID, data: { monthlyIncome, transactions, mileage, categories } }) })
     if (res.ok) { setLastSaved(new Date().toLocaleString()); alert('Saved!') } else alert('Failed to save')
     setSaving(false)
   }
@@ -79,9 +83,9 @@ export default function Bookkeeping2026() {
   const totalMiles = mileage.reduce((s, m) => s + m.miles, 0)
   const mileageDeduction = totalMiles * 0.70
 
-  // Build full category list: defaults + any custom ones from transactions
-  const customCats = [...new Set(transactions.map(t => t.category).filter(c => !EXPENSE_CATS.includes(c)))]
-  const allCats = [...EXPENSE_CATS, ...customCats]
+  // Build full category list: managed list + any orphans from transactions
+  const orphanCats = [...new Set(transactions.map(t => t.category).filter(c => !categories.includes(c)))]
+  const allCats = [...categories, ...orphanCats]
 
   const expenseByCategory = allCats.map(cat => ({
     cat, total: transactions.filter(t => t.type === 'expense' && t.category === cat).reduce((s, t) => s + t.amount, 0)
@@ -317,26 +321,12 @@ export default function Bookkeeping2026() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
               <div><label style={ls}>CATEGORY</label>
-                {editingCat ? (
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <input value={editCatName} onChange={e => setEditCatName(e.target.value)} style={{ ...is, flex: 1 }} placeholder="New category name" autoFocus onKeyDown={e => { if (e.key === 'Enter') { const old = txCat; const nw = editCatName.trim(); if (nw && nw !== old) { setTransactions(p => p.map(x => x.category === old ? { ...x, category: nw } : x)); setTxCat(nw) } setEditingCat(false) } }} />
-                    <button onClick={() => { const old = txCat; const nw = editCatName.trim(); if (nw && nw !== old) { setTransactions(p => p.map(x => x.category === old ? { ...x, category: nw } : x)); setTxCat(nw) } setEditingCat(false) }} style={{ padding: '6px 12px', borderRadius: 6, background: '#085041', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Save</button>
-                    <button onClick={() => setEditingCat(false)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 12 }}>Cancel</button>
-                  </div>
-                ) : txCat === '__custom__' ? (
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <input value="" onChange={e => setTxCat(e.target.value)} style={{ ...is, flex: 1 }} placeholder="Type custom category" autoFocus />
-                    <button onClick={() => setTxCat(EXPENSE_CATS[0])} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 12 }}>Cancel</button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <select value={txCat} onChange={e => setTxCat(e.target.value)} style={{ ...is, flex: 1 }}>
-                      {allCats.map(c => <option key={c} value={c}>{c}</option>)}
-                      <option value="__custom__">+ New category...</option>
-                    </select>
-                    <button onClick={() => { setEditCatName(txCat); setEditingCat(true) }} title="Rename this category" style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 14 }}>✏️</button>
-                  </div>
-                )}
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <select value={txCat} onChange={e => setTxCat(e.target.value)} style={{ ...is, flex: 1 }}>
+                    {allCats.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <button onClick={() => setShowCatManager(true)} title="Manage categories" style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 14 }}>⚙️</button>
+                </div>
               </div>
               <div><label style={ls}>SOURCE</label><input value={txSource} onChange={e => setTxSource(e.target.value)} placeholder="Square Bank" style={is} /></div>
             </div>
@@ -378,17 +368,9 @@ export default function Bookkeeping2026() {
                   <div><label style={ls}>DESCRIPTION / STORE</label><input value={scanResult.desc} onChange={e => setScanResult({ ...scanResult, desc: e.target.value })} style={is} placeholder="Store name" /></div>
                   <div><label style={ls}>AMOUNT ($)</label><input type="number" value={scanResult.amount} onChange={e => setScanResult({ ...scanResult, amount: e.target.value })} style={is} placeholder="0.00" /></div>
                   <div><label style={ls}>CATEGORY</label>
-                    {scanResult.category === '__custom__' || (!EXPENSE_CATS.includes(scanResult.category) && !customCats.includes(scanResult.category) && scanResult.category !== '') ? (
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <input value={scanResult.category === '__custom__' ? '' : scanResult.category} onChange={e => setScanResult({ ...scanResult, category: e.target.value })} style={{ ...is, flex: 1 }} placeholder="Type custom category" autoFocus />
-                        <button onClick={() => setScanResult({ ...scanResult, category: EXPENSE_CATS[0] })} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap' }}>Cancel</button>
-                      </div>
-                    ) : (
-                      <select value={scanResult.category} onChange={e => setScanResult({ ...scanResult, category: e.target.value })} style={is}>
-                        {allCats.map(c => <option key={c} value={c}>{c}</option>)}
-                        <option value="__custom__">+ Custom category...</option>
-                      </select>
-                    )}
+                    <select value={scanResult.category} onChange={e => setScanResult({ ...scanResult, category: e.target.value })} style={is}>
+                      {allCats.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
@@ -396,6 +378,39 @@ export default function Bookkeeping2026() {
                   <button onClick={() => receiptRef.current?.click()} style={{ padding: '12px 20px', borderRadius: 8, background: '#eee', color: '#555', fontWeight: 600, border: 'none', cursor: 'pointer' }}>Retake</button>
                 </div>
               </>}
+            </div>
+          </div>}
+          {/* Category Manager Modal */}
+          {showCatManager && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowCatManager(false)}>
+            <div style={{ background: '#fff', borderRadius: 16, maxWidth: 460, width: '100%', maxHeight: '80vh', overflow: 'auto', padding: 24 }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#2C3E6B' }}>Manage Categories</div>
+                <button onClick={() => setShowCatManager(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888' }}>✕</button>
+              </div>
+              {/* Add new */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                <input value={newCatName} onChange={e => setNewCatName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = newCatName.trim(); if (n && !categories.includes(n)) { setCategories(p => [...p, n]); setNewCatName('') } } }} placeholder="New category name..." style={{ ...is, flex: 1 }} />
+                <button onClick={() => { const n = newCatName.trim(); if (n && !categories.includes(n)) { setCategories(p => [...p, n]); setNewCatName('') } }} style={{ padding: '8px 16px', borderRadius: 6, background: '#085041', color: '#fff', fontWeight: 600, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>+ Add</button>
+              </div>
+              {/* List */}
+              <div style={{ border: '1px solid #eee', borderRadius: 8, overflow: 'hidden' }}>
+                {categories.map((cat, i) => {
+                  const count = transactions.filter(t => t.category === cat).length
+                  return <div key={cat + i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: i < categories.length - 1 ? '1px solid #f0f0f0' : 'none', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                    {editingCat && editCatName === cat ? (
+                      <input defaultValue={cat} autoFocus onKeyDown={e => { if (e.key === 'Enter') { const nw = (e.target as HTMLInputElement).value.trim(); if (nw && nw !== cat) { setCategories(p => p.map(c => c === cat ? nw : c)); setTransactions(p => p.map(t => t.category === cat ? { ...t, category: nw } : t)); if (txCat === cat) setTxCat(nw) } setEditingCat(false); setEditCatName('') } else if (e.key === 'Escape') { setEditingCat(false); setEditCatName('') } }}
+                        onBlur={e => { const nw = e.target.value.trim(); if (nw && nw !== cat) { setCategories(p => p.map(c => c === cat ? nw : c)); setTransactions(p => p.map(t => t.category === cat ? { ...t, category: nw } : t)); if (txCat === cat) setTxCat(nw) } setEditingCat(false); setEditCatName('') }}
+                        style={{ ...is, flex: 1, fontSize: 13 }} />
+                    ) : (
+                      <span style={{ flex: 1, fontSize: 13 }}>{cat}</span>
+                    )}
+                    {count > 0 && <span style={{ fontSize: 11, color: '#888', background: '#f0f0f0', padding: '2px 8px', borderRadius: 10 }}>{count}</span>}
+                    <button onClick={() => { setEditCatName(cat); setEditingCat(true) }} title="Rename" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 2 }}>✏️</button>
+                    <button onClick={() => { if (count > 0) { if (!confirm(`"${cat}" has ${count} transaction(s). Delete category and move them to "Other"?`)) return; setTransactions(p => p.map(t => t.category === cat ? { ...t, category: 'Other' } : t)) } setCategories(p => p.filter(c => c !== cat)); if (txCat === cat) setTxCat(categories[0] || 'Other') }} title="Delete" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 2, color: '#D85A30' }}>🗑️</button>
+                  </div>
+                })}
+              </div>
+              <div style={{ fontSize: 11, color: '#888', marginTop: 12 }}>Click ✏️ to rename, 🗑️ to delete. Click Save after to keep changes.</div>
             </div>
           </div>}
         </>}
