@@ -141,40 +141,77 @@ export default function Bookkeeping2026() {
     setMlFrom(''); setMlTo(''); setMlMiles(''); setMlPurpose('')
   }
 
-  // Store name → category mapping
+  // Store name → category prefix mapping
+  // When scanned, category = "prefix - storeName" (e.g. "COGS - Dawn Food Products")
+  // If an existing category already contains the store name, it uses that instead
   const storeCatMap: [string[], string, string][] = [
-    // [keywords, storeName, category]
-    [['WALMART', 'WAL-MART', 'WAL MART', 'WM SUPERCENTER'], 'Walmart', 'COGS - Walmart'],
-    [['SAM\'S CLUB', 'SAMS CLUB', 'SAM\'S'], 'Sam\'s Club', 'COGS - Sam\'s Club'],
-    [['BROOKSHIRE', 'BROOKSHIRES'], 'Brookshire\'s', 'COGS - Brookshire\'s'],
-    [['SUPER 1', 'SUPER1'], 'Super 1 Foods', 'COGS - Suppliers'],
-    [['DAWN FOOD', 'DAWN PROD'], 'Dawn Food Products', 'COGS - Suppliers'],
-    [['SYSCO'], 'Sysco', 'COGS - Suppliers'],
-    [['IMPORT EMP'], 'Import Emp', 'COGS - Suppliers'],
-    [['BEN E KEITH', 'BENEKEITH'], 'Ben E. Keith', 'COGS - Suppliers'],
-    [['US FOODS'], 'US Foods', 'COGS - Suppliers'],
-    [['COSTCO'], 'Costco', 'COGS - Other'],
-    [['TARGET'], 'Target', 'COGS - Other'],
-    [['DOLLAR GENERAL', 'DOLLAR TREE', 'FAMILY DOLLAR'], 'Dollar Store', 'COGS - Other'],
-    [['HOME DEPOT'], 'Home Depot', 'Maintenance/Repairs'],
-    [['LOWES', 'LOWE\'S'], 'Lowe\'s', 'Maintenance/Repairs'],
-    [['HARBOR FREIGHT'], 'Harbor Freight', 'Maintenance/Repairs'],
-    [['ACE HARDWARE'], 'Ace Hardware', 'Maintenance/Repairs'],
+    // [keywords, storeName, categoryPrefix]
+    [['WALMART', 'WAL-MART', 'WAL MART', 'WM SUPERCENTER'], 'Walmart', 'COGS'],
+    [['SAM\'S CLUB', 'SAMS CLUB', 'SAM\'S'], 'Sam\'s Club', 'COGS'],
+    [['BROOKSHIRE', 'BROOKSHIRES'], 'Brookshire\'s', 'COGS'],
+    [['SUPER 1', 'SUPER1'], 'Super 1 Foods', 'COGS'],
+    [['DAWN FOOD', 'DAWN PROD'], 'Dawn Food Products', 'COGS'],
+    [['SYSCO'], 'Sysco', 'COGS'],
+    [['IMPORT EMP'], 'Import Emp', 'COGS'],
+    [['BEN E KEITH', 'BENEKEITH'], 'Ben E. Keith', 'COGS'],
+    [['US FOODS'], 'US Foods', 'COGS'],
+    [['COSTCO'], 'Costco', 'COGS'],
+    [['TARGET'], 'Target', 'COGS'],
+    [['DOLLAR GENERAL'], 'Dollar General', 'COGS'],
+    [['DOLLAR TREE'], 'Dollar Tree', 'COGS'],
+    [['FAMILY DOLLAR'], 'Family Dollar', 'COGS'],
+    [['HOME DEPOT'], 'Home Depot', 'Maintenance'],
+    [['LOWES', 'LOWE\'S'], 'Lowe\'s', 'Maintenance'],
+    [['HARBOR FREIGHT'], 'Harbor Freight', 'Maintenance'],
+    [['ACE HARDWARE'], 'Ace Hardware', 'Maintenance'],
     [['EXXON', 'EXXONMOBIL'], 'Exxon', 'Vehicle/Fuel'],
     [['SHELL'], 'Shell', 'Vehicle/Fuel'],
     [['CHEVRON'], 'Chevron', 'Vehicle/Fuel'],
     [['VALERO'], 'Valero', 'Vehicle/Fuel'],
     [['QT ', 'QUIKTRIP'], 'QuikTrip', 'Vehicle/Fuel'],
     [['RACETRAC'], 'RaceTrac', 'Vehicle/Fuel'],
-    [['TXU', 'TXU ENERGY'], 'TXU Energy', 'Electricity (TXU)'],
-    [['AT&T', 'ATT', 'FRONTIER', 'VEXUS'], 'AT&T', 'Internet/Phone'],
-    [['SIMPLISAFE', 'ADT'], 'SimpliSafe', 'Security'],
-    [['ALLSTATE', 'STATE FARM', 'NEXT INSUR', 'INSURANCE'], 'Insurance', 'Insurance'],
-    [['MCDONALD', 'WHATABURGER', 'SONIC', 'CHICK-FIL', 'SUBWAY', 'TACO BELL', 'WENDY'], 'Restaurant', 'Other'],
-    [['OFFICE DEPOT', 'STAPLES'], 'Office Depot', 'Office Supplies'],
-    [['CLOROX', 'CLEAN', 'JANITORIAL'], 'Cleaning', 'Cleaning Supplies'],
-    [['AUTOZONE', 'O\'REILLY', 'OREILLY', 'NAPA'], 'Auto Parts', 'Vehicle/Fuel'],
+    [['TXU', 'TXU ENERGY'], 'TXU Energy', 'Electricity'],
+    [['AT&T', 'ATT'], 'AT&T', 'Internet/Phone'],
+    [['FRONTIER'], 'Frontier', 'Internet/Phone'],
+    [['VEXUS'], 'Vexus', 'Internet/Phone'],
+    [['SIMPLISAFE'], 'SimpliSafe', 'Security'],
+    [['ADT'], 'ADT', 'Security'],
+    [['ALLSTATE'], 'Allstate', 'Insurance'],
+    [['STATE FARM'], 'State Farm', 'Insurance'],
+    [['NEXT INSUR'], 'Next Insurance', 'Insurance'],
+    [['MCDONALD'], 'McDonald\'s', 'Dining'],
+    [['WHATABURGER'], 'Whataburger', 'Dining'],
+    [['SONIC'], 'Sonic', 'Dining'],
+    [['CHICK-FIL'], 'Chick-fil-A', 'Dining'],
+    [['SUBWAY'], 'Subway', 'Dining'],
+    [['TACO BELL'], 'Taco Bell', 'Dining'],
+    [['WENDY'], 'Wendy\'s', 'Dining'],
+    [['OFFICE DEPOT'], 'Office Depot', 'Office Supplies'],
+    [['STAPLES'], 'Staples', 'Office Supplies'],
+    [['CLOROX', 'JANITORIAL'], 'Cleaning Supplies', 'Cleaning Supplies'],
+    [['AUTOZONE'], 'AutoZone', 'Vehicle/Fuel'],
+    [['O\'REILLY', 'OREILLY'], 'O\'Reilly Auto', 'Vehicle/Fuel'],
+    [['NAPA'], 'NAPA Auto Parts', 'Vehicle/Fuel'],
+    [['DRAKE'], 'Drake', 'Payroll'],
   ]
+
+  // Find or create a category for a recognized store
+  const findOrCreateCat = (storeName: string, prefix: string): string => {
+    // First check if any existing category contains the store name
+    const storeUpper = storeName.toUpperCase()
+    const existing = categories.find(c => c.toUpperCase().includes(storeUpper))
+    if (existing) return existing
+    // Also check if store name contains an existing category keyword
+    const existingReverse = categories.find(c => storeUpper.includes(c.toUpperCase().replace(/^COGS\s*-\s*/, '').replace(/^MAINTENANCE\s*-\s*/, '')))
+    if (existingReverse) return existingReverse
+    // Build new category name: "prefix - storeName"
+    const newCat = `${prefix} - ${storeName}`
+    // Check if this exact category exists
+    if (categories.includes(newCat)) return newCat
+    // Auto-add the new category to the list
+    setCategories(prev => [...prev, newCat])
+    return newCat
+  }
 
   const scanReceipt = async (file: File) => {
     setScanning(true)
@@ -189,11 +226,12 @@ export default function Bookkeeping2026() {
       const fullText = lines.join(' ').toUpperCase()
 
       // 1. Extract store name + auto-category
-      let desc = '', cat = 'Other'
-      for (const [keywords, storeName, storeCat] of storeCatMap) {
-        if (keywords.some(k => fullText.includes(k))) { desc = storeName; cat = storeCat; break }
+      let desc = '', cat = 'Other', catPrefix = ''
+      for (const [keywords, storeName, prefix] of storeCatMap) {
+        if (keywords.some(k => fullText.includes(k))) { desc = storeName; catPrefix = prefix; break }
       }
       if (!desc && lines.length > 0) desc = lines[0].replace(/[^a-zA-Z0-9\s&'.-]/g, '').trim().slice(0, 40)
+      if (desc && catPrefix) cat = findOrCreateCat(desc, catPrefix)
 
       // 2. Extract date — try multiple formats
       let date = new Date().toISOString().slice(0, 10)
@@ -263,8 +301,6 @@ export default function Bookkeeping2026() {
         }
       }
 
-      // If category not in list, fall back to closest match or 'Other'
-      if (!allCats.includes(cat)) cat = allCats.find(c => c.toLowerCase().includes(cat.toLowerCase().split(' ')[0])) || 'Other'
 
       setScanResult({ date, desc, amount, category: cat })
     } catch (err) {
