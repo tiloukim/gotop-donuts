@@ -231,12 +231,21 @@ export default function Bookkeeping2026() {
       // 3. Extract total amount — prioritize TOTAL at bottom of receipt
       let amount = ''
       const totalPatterns = [
-        /GRAND\s*TOTAL\s*[\$:]?\s*([\d,]+\.\d{2})/i,
-        /TOTAL\s*(?:DUE|SALE|PURCHASE)?\s*[\$:]?\s*([\d,]+\.\d{2})/i,
-        /AMOUNT\s*(?:DUE|OWED)?\s*[\$:]?\s*([\d,]+\.\d{2})/i,
-        /BALANCE\s*(?:DUE)?\s*[\$:]?\s*([\d,]+\.\d{2})/i,
-        /(?:VISA|MASTERCARD|DEBIT|CREDIT)\s*[\$:]?\s*([\d,]+\.\d{2})/i,
-        /TEND\s*[\$:]?\s*([\d,]+\.\d{2})/i,
+        /GRAND\s*TOTAL\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /TOTAL\s*INVOICE\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /TOTAL\s*DUE\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /TOTAL\s*SALE\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /TOTAL\s*PURCHASE\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /TOTAL\s*AMOUNT\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /AMOUNT\s*DUE\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /AMOUNT\s*OWED\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /BALANCE\s*DUE\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /SUB\s*-?\s*TOTAL\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /SUBTOTAL\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /(?:VISA|MASTERCARD|DEBIT|CREDIT|AMEX)\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /TEND(?:ER)?\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /NET\s*(?:TOTAL|DUE|AMOUNT)\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
+        /TOTAL\s*[:\s$]*\$?\s*([\d,]+\.\d{2})/i,
       ]
       // Search from bottom up (totals are usually near the end)
       const reversedLines = [...lines].reverse()
