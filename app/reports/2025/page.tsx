@@ -262,13 +262,14 @@ export default function IncomeStatement2025() {
   const btnStyle: React.CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '2px 4px', color: '#aaa' }
 
   const renderRow = (arr: any[], setArr: any, idx: number, canDelete = true) => (
-    <div key={`row-${idx}-${arr.length}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontSize: 14 }}>
+    <div key={`${arr[idx].label}-${idx}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontSize: 14 }}>
       <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         <button onClick={() => moveRow(arr, setArr, idx, 'up')} style={{ ...btnStyle, fontSize: 10, lineHeight: 1 }} title="Move up">&#9650;</button>
         <button onClick={() => moveRow(arr, setArr, idx, 'down')} style={{ ...btnStyle, fontSize: 10, lineHeight: 1 }} title="Move down">&#9660;</button>
       </div>
       <input
         type="text"
+        key={`label-${arr[idx].label}-${idx}`}
         defaultValue={arr[idx].label}
         onBlur={e => { if (e.target.value !== arr[idx].label) renameRow(arr, setArr, idx, e.target.value) }}
         onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
