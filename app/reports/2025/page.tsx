@@ -43,7 +43,7 @@ const defaultExpenses = [
   { label: 'Smith County Vehicle Reg/Fees', amount: 226.84 }, // Square Bank
   { label: 'Business License FEE', amount: 0 },
   // Utilities
-  { label: 'Electricity (TXU)', amount: 4276.72 },          // Austin ($2,910.79) + Square ($1,365.93)
+  { label: 'Electricity (TXU)', amount: 5001.30 },          // TXU direct: Jun-Dec $5,001.30 (Jan-May may be additional)
   { label: 'Centralpoint Gas / Propane', amount: 19.92 },   // Square Bank (Amerigas)
   { label: 'City of Tyler Water', amount: 2012.34 },        // Square Bank
   { label: 'AT&T / Phone / Internet', amount: 2639.89 },    // Square Bank
