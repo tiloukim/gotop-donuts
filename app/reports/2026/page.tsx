@@ -131,7 +131,7 @@ export default function Bookkeeping2026() {
 
   const addTransaction = () => {
     if (!txDesc || !txAmount) return
-    setTransactions([...transactions, { id: Date.now().toString(), date: txDate, desc: txDesc, amount: parseFloat(txAmount), category: txCat, type: 'expense', source: txSource }])
+    setTransactions([...transactions, { id: Date.now().toString(), date: txDate, desc: txDesc, amount: parseFloat(txAmount.replace(/,/g, '')), category: txCat, type: 'expense', source: txSource }])
     setTxDesc(''); setTxAmount('')
   }
 
@@ -239,14 +239,15 @@ export default function Bookkeeping2026() {
         'NET\\s*(?:TOTAL|DUE|AMOUNT)', 'TOTAL'
       ]
       const totalPatterns = totalKeywords.map(kw => new RegExp(kw + '[:\\s]*\\$?\\s*' + AMT, 'i'))
-      const parseAmt = (raw: string) => parseFloat(raw.replace(/[,\s]/g, '').replace(/\.(?=\d{3}\.)/g, ''))
+      const cleanAmt = (raw: string) => raw.replace(/[\s]/g, '').replace(/\.(?=\d{3}\.)/g, '')
+      const parseAmt = (raw: string) => parseFloat(cleanAmt(raw).replace(/,/g, ''))
       let amount = ''
       // Search from bottom up (totals are usually near the end)
       const reversedLines = [...lines].reverse()
       for (const line of reversedLines) {
         for (const pat of totalPatterns) {
           const m = line.match(pat)
-          if (m) { amount = parseAmt(m[1]).toFixed(2); break }
+          if (m) { const v = parseAmt(m[1]); amount = v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); break }
         }
         if (amount) break
       }
@@ -257,7 +258,7 @@ export default function Bookkeeping2026() {
           const matches = line.match(/\$?\s*(\d{1,3}(?:[,\s.]\d{3})*\.\d{2})/g)
           if (matches) for (const match of matches) {
             const v = parseAmt(match.replace(/^\$?\s*/, ''))
-            if (v > maxVal && v < 50000) { maxVal = v; amount = v.toFixed(2) }
+            if (v > maxVal && v < 50000) { maxVal = v; amount = v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
           }
         }
       }
@@ -275,7 +276,7 @@ export default function Bookkeeping2026() {
 
   const applyReceipt = () => {
     if (!scanResult) return
-    const amt = parseFloat(scanResult.amount)
+    const amt = parseFloat(scanResult.amount.replace(/,/g, ''))
     if (!scanResult.desc || !amt) {
       // If missing data, fill the form instead so user can complete it
       setTxDate(scanResult.date)
@@ -410,7 +411,7 @@ export default function Bookkeeping2026() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
               <div><label style={ls}>DATE</label><input type="date" value={txDate} onChange={e => setTxDate(e.target.value)} style={is} /></div>
               <div><label style={ls}>DESCRIPTION</label><input value={txDesc} onChange={e => setTxDesc(e.target.value)} placeholder="Dawn Food Products" style={is} /></div>
-              <div><label style={ls}>AMOUNT ($)</label><input type="number" value={txAmount} onChange={e => setTxAmount(e.target.value)} placeholder="0.00" style={is} /></div>
+              <div><label style={ls}>AMOUNT ($)</label><input type="text" inputMode="decimal" value={txAmount} onChange={e => { const v = e.target.value.replace(/[^0-9.,]/g, ''); setTxAmount(v) }} placeholder="0.00" style={is} /></div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
               <div><label style={ls}>CATEGORY</label>
@@ -459,7 +460,7 @@ export default function Bookkeeping2026() {
                 <div style={{ display: 'grid', gap: 10 }}>
                   <div><label style={ls}>DATE</label><input type="date" value={scanResult.date} onChange={e => setScanResult({ ...scanResult, date: e.target.value })} style={is} /></div>
                   <div><label style={ls}>DESCRIPTION / STORE</label><input value={scanResult.desc} onChange={e => setScanResult({ ...scanResult, desc: e.target.value })} style={is} placeholder="Store name" /></div>
-                  <div><label style={ls}>AMOUNT ($)</label><input type="number" value={scanResult.amount} onChange={e => setScanResult({ ...scanResult, amount: e.target.value })} style={is} placeholder="0.00" /></div>
+                  <div><label style={ls}>AMOUNT ($)</label><input type="text" inputMode="decimal" value={scanResult.amount} onChange={e => setScanResult({ ...scanResult, amount: e.target.value.replace(/[^0-9.,]/g, '') })} style={is} placeholder="0.00" /></div>
                   <div><label style={ls}>CATEGORY</label>
                     <select value={scanResult.category} onChange={e => setScanResult({ ...scanResult, category: e.target.value })} style={is}>
                       {allCats.map(c => <option key={c} value={c}>{c}</option>)}
