@@ -41,6 +41,11 @@ export default function Bookkeeping2026() {
   const [txDesc, setTxDesc] = useState(''); const [txAmount, setTxAmount] = useState(''); const [txCat, setTxCat] = useState(EXPENSE_CATS[0]); const [txSource, setTxSource] = useState('Square Bank')
   const [mlDate, setMlDate] = useState(new Date().toISOString().slice(0,10)); const [mlFrom, setMlFrom] = useState(''); const [mlTo, setMlTo] = useState(''); const [mlMiles, setMlMiles] = useState(''); const [mlPurpose, setMlPurpose] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const receiptRef = useRef<HTMLInputElement>(null)
+  const [scanning, setScanning] = useState(false)
+  const [receiptPreview, setReceiptPreview] = useState<string|null>(null)
+  const [scanResult, setScanResult] = useState<{date:string;desc:string;amount:string;category:string}|null>(null)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
 
   useEffect(() => { if (localStorage.getItem(STORAGE_KEY) === PASS) setAuthed(true) }, [])
 
@@ -93,6 +98,95 @@ export default function Bookkeeping2026() {
     if (!mlFrom || !mlTo || !mlMiles) return
     setMileage([...mileage, { id: Date.now().toString(), date: mlDate, from: mlFrom, to: mlTo, miles: parseFloat(mlMiles), purpose: mlPurpose }])
     setMlFrom(''); setMlTo(''); setMlMiles(''); setMlPurpose('')
+  }
+
+  const scanReceipt = async (file: File) => {
+    setScanning(true)
+    setScanResult(null)
+    const url = URL.createObjectURL(file)
+    setReceiptPreview(url)
+    setShowReceiptModal(true)
+    try {
+      const Tesseract = (await import('tesseract.js')).default
+      const { data: { text } } = await Tesseract.recognize(file, 'eng')
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+      // Extract store name (usually first recognizable line)
+      let desc = ''
+      const knownStores: Record<string, string> = {
+        'WALMART': 'Walmart', 'WAL-MART': 'Walmart', 'SAM\'S CLUB': 'Sam\'s Club', 'SAMS CLUB': 'Sam\'s Club',
+        'TARGET': 'Target', 'BROOKSHIRE': 'Brookshire\'s', 'HOME DEPOT': 'Home Depot', 'LOWES': 'Lowe\'s',
+        'LOWE\'S': 'Lowe\'s', 'COSTCO': 'Costco', 'DOLLAR': 'Dollar Store', 'EXXON': 'Exxon',
+        'SHELL': 'Shell', 'HARBOR FREIGHT': 'Harbor Freight', 'MCDONALD': 'McDonald\'s',
+        'SUPER 1': 'Super 1 Foods', 'DAWN': 'Dawn Food Products', 'SYSCO': 'Sysco'
+      }
+      const fullText = lines.join(' ').toUpperCase()
+      for (const [key, name] of Object.entries(knownStores)) {
+        if (fullText.includes(key)) { desc = name; break }
+      }
+      if (!desc && lines.length > 0) desc = lines[0].replace(/[^a-zA-Z0-9\s&'-]/g, '').trim().slice(0, 40)
+      // Extract date
+      let date = new Date().toISOString().slice(0, 10)
+      const datePatterns = [
+        /(\d{1,2})[\/\-](\d{1,2})[\/\-](20\d{2})/, // MM/DD/YYYY
+        /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})/, // MM/DD/YY
+      ]
+      for (const line of lines) {
+        for (const pat of datePatterns) {
+          const m = line.match(pat)
+          if (m) {
+            const yr = m[3].length === 2 ? '20' + m[3] : m[3]
+            const mo = m[1].padStart(2, '0')
+            const dy = m[2].padStart(2, '0')
+            if (parseInt(mo) <= 12 && parseInt(dy) <= 31) { date = `${yr}-${mo}-${dy}`; break }
+          }
+        }
+      }
+      // Extract total amount (look for TOTAL, AMOUNT DUE, etc.)
+      let amount = ''
+      const totalPatterns = [/TOTAL\s*[\$:]?\s*([\d,]+\.\d{2})/i, /AMOUNT\s*DUE\s*[\$:]?\s*([\d,]+\.\d{2})/i, /BALANCE\s*[\$:]?\s*([\d,]+\.\d{2})/i, /GRAND\s*TOTAL\s*[\$:]?\s*([\d,]+\.\d{2})/i]
+      const reversedLines = [...lines].reverse()
+      for (const line of reversedLines) {
+        for (const pat of totalPatterns) {
+          const m = line.match(pat)
+          if (m) { amount = m[1].replace(',', ''); break }
+        }
+        if (amount) break
+      }
+      // If no total found, grab the largest dollar amount
+      if (!amount) {
+        let maxVal = 0
+        for (const line of lines) {
+          const matches = line.match(/\$?\s*(\d+\.\d{2})/g)
+          if (matches) for (const match of matches) {
+            const v = parseFloat(match.replace(/[\$\s]/g, ''))
+            if (v > maxVal && v < 10000) { maxVal = v; amount = v.toFixed(2) }
+          }
+        }
+      }
+      // Auto-categorize
+      const d = desc.toUpperCase()
+      let cat = 'Other'
+      if (d.includes('WALMART') || d.includes('SAM') || d.includes('BROOKSHIRE') || d.includes('SUPER 1') || d.includes('DAWN') || d.includes('SYSCO')) cat = 'COGS - Suppliers'
+      else if (d.includes('LOWES') || d.includes('LOWE') || d.includes('HOME DEPOT') || d.includes('HARBOR')) cat = 'Maintenance/Repairs'
+      else if (d.includes('EXXON') || d.includes('SHELL') || d.includes('FUEL')) cat = 'Vehicle/Fuel'
+      setScanResult({ date, desc, amount, category: cat })
+    } catch (err) {
+      console.error('OCR error:', err)
+      setScanResult({ date: new Date().toISOString().slice(0, 10), desc: '', amount: '', category: 'Other' })
+    }
+    setScanning(false)
+  }
+
+  const applyReceipt = () => {
+    if (!scanResult) return
+    setTxDate(scanResult.date)
+    setTxDesc(scanResult.desc)
+    setTxAmount(scanResult.amount)
+    setTxCat(scanResult.category)
+    setTxSource('Receipt Scan')
+    setShowReceiptModal(false)
+    setReceiptPreview(null)
+    setScanResult(null)
   }
 
   const importCSV = (text: string) => {
@@ -219,7 +313,11 @@ export default function Bookkeeping2026() {
               <div><label style={ls}>CATEGORY</label><select value={txCat} onChange={e => setTxCat(e.target.value)} style={is}>{EXPENSE_CATS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
               <div><label style={ls}>SOURCE</label><input value={txSource} onChange={e => setTxSource(e.target.value)} placeholder="Square Bank" style={is} /></div>
             </div>
-            <button onClick={addTransaction} style={{ marginTop: 12, padding: '10px 24px', borderRadius: 8, background: '#2C3E6B', color: '#fff', fontWeight: 600, border: 'none', cursor: 'pointer' }}>+ Add Expense</button>
+            <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+              <button onClick={addTransaction} style={{ padding: '10px 24px', borderRadius: 8, background: '#2C3E6B', color: '#fff', fontWeight: 600, border: 'none', cursor: 'pointer' }}>+ Add Expense</button>
+              <button onClick={() => receiptRef.current?.click()} style={{ padding: '10px 24px', borderRadius: 8, background: '#D85A30', color: '#fff', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>📸 Scan Receipt</button>
+              <input ref={receiptRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) scanReceipt(f); e.target.value = '' }} />
+            </div>
           </div>
           <div style={cs}>
             <div style={{ fontSize: 16, fontWeight: 700, color: '#2C3E6B', marginBottom: 12 }}>Expense Log ({transactions.length} · {fmt(totalExpenses)})</div>
@@ -233,6 +331,34 @@ export default function Bookkeeping2026() {
                   <td><button onClick={() => setTransactions(p => p.filter(x => x.id !== t.id))} style={{ background: 'none', border: 'none', color: '#ddd', cursor: 'pointer' }}>✕</button></td>
                 </tr>)}</tbody></table></div>}
           </div>
+          {/* Receipt Scanner Modal */}
+          {showReceiptModal && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => { setShowReceiptModal(false); setReceiptPreview(null); setScanResult(null) }}>
+            <div style={{ background: '#fff', borderRadius: 16, maxWidth: 500, width: '100%', maxHeight: '90vh', overflow: 'auto', padding: 24 }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#2C3E6B' }}>📸 Receipt Scanner</div>
+                <button onClick={() => { setShowReceiptModal(false); setReceiptPreview(null); setScanResult(null) }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888' }}>✕</button>
+              </div>
+              {receiptPreview && <img src={receiptPreview} style={{ width: '100%', maxHeight: 300, objectFit: 'contain', borderRadius: 8, border: '1px solid #eee', marginBottom: 16 }} alt="Receipt" />}
+              {scanning && <div style={{ textAlign: 'center', padding: 24 }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
+                <div style={{ fontWeight: 600, color: '#2C3E6B' }}>Scanning receipt...</div>
+                <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Reading text with OCR</div>
+              </div>}
+              {scanResult && !scanning && <>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#085041', marginBottom: 12, background: '#E8F5EE', padding: '8px 12px', borderRadius: 8 }}>✓ Scan complete — review & edit below</div>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div><label style={ls}>DATE</label><input type="date" value={scanResult.date} onChange={e => setScanResult({ ...scanResult, date: e.target.value })} style={is} /></div>
+                  <div><label style={ls}>DESCRIPTION / STORE</label><input value={scanResult.desc} onChange={e => setScanResult({ ...scanResult, desc: e.target.value })} style={is} placeholder="Store name" /></div>
+                  <div><label style={ls}>AMOUNT ($)</label><input type="number" value={scanResult.amount} onChange={e => setScanResult({ ...scanResult, amount: e.target.value })} style={is} placeholder="0.00" /></div>
+                  <div><label style={ls}>CATEGORY</label><select value={scanResult.category} onChange={e => setScanResult({ ...scanResult, category: e.target.value })} style={is}>{EXPENSE_CATS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                  <button onClick={applyReceipt} style={{ flex: 1, padding: '12px 20px', borderRadius: 8, background: '#085041', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer' }}>✓ Add to Expenses</button>
+                  <button onClick={() => receiptRef.current?.click()} style={{ padding: '12px 20px', borderRadius: 8, background: '#eee', color: '#555', fontWeight: 600, border: 'none', cursor: 'pointer' }}>Retake</button>
+                </div>
+              </>}
+            </div>
+          </div>}
         </>}
 
         {/* IMPORT */}
