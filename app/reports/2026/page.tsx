@@ -46,6 +46,8 @@ export default function Bookkeeping2026() {
   const [receiptPreview, setReceiptPreview] = useState<string|null>(null)
   const [scanResult, setScanResult] = useState<{date:string;desc:string;amount:string;category:string}|null>(null)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [editingCat, setEditingCat] = useState(false)
+  const [editCatName, setEditCatName] = useState('')
 
   useEffect(() => { if (localStorage.getItem(STORAGE_KEY) === PASS) setAuthed(true) }, [])
 
@@ -315,16 +317,25 @@ export default function Bookkeeping2026() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
               <div><label style={ls}>CATEGORY</label>
-                {txCat === '__custom__' || (!EXPENSE_CATS.includes(txCat) && !customCats.includes(txCat) && txCat !== '') ? (
+                {editingCat ? (
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <input value={txCat === '__custom__' ? '' : txCat} onChange={e => setTxCat(e.target.value)} style={{ ...is, flex: 1 }} placeholder="Type custom category" autoFocus />
-                    <button onClick={() => setTxCat(EXPENSE_CATS[0])} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap' }}>Cancel</button>
+                    <input value={editCatName} onChange={e => setEditCatName(e.target.value)} style={{ ...is, flex: 1 }} placeholder="New category name" autoFocus onKeyDown={e => { if (e.key === 'Enter') { const old = txCat; const nw = editCatName.trim(); if (nw && nw !== old) { setTransactions(p => p.map(x => x.category === old ? { ...x, category: nw } : x)); setTxCat(nw) } setEditingCat(false) } }} />
+                    <button onClick={() => { const old = txCat; const nw = editCatName.trim(); if (nw && nw !== old) { setTransactions(p => p.map(x => x.category === old ? { ...x, category: nw } : x)); setTxCat(nw) } setEditingCat(false) }} style={{ padding: '6px 12px', borderRadius: 6, background: '#085041', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Save</button>
+                    <button onClick={() => setEditingCat(false)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 12 }}>Cancel</button>
+                  </div>
+                ) : txCat === '__custom__' ? (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input value="" onChange={e => setTxCat(e.target.value)} style={{ ...is, flex: 1 }} placeholder="Type custom category" autoFocus />
+                    <button onClick={() => setTxCat(EXPENSE_CATS[0])} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 12 }}>Cancel</button>
                   </div>
                 ) : (
-                  <select value={txCat} onChange={e => setTxCat(e.target.value)} style={is}>
-                    {allCats.map(c => <option key={c} value={c}>{c}</option>)}
-                    <option value="__custom__">+ Custom category...</option>
-                  </select>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <select value={txCat} onChange={e => setTxCat(e.target.value)} style={{ ...is, flex: 1 }}>
+                      {allCats.map(c => <option key={c} value={c}>{c}</option>)}
+                      <option value="__custom__">+ New category...</option>
+                    </select>
+                    <button onClick={() => { setEditCatName(txCat); setEditingCat(true) }} title="Rename this category" style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 14 }}>✏️</button>
+                  </div>
                 )}
               </div>
               <div><label style={ls}>SOURCE</label><input value={txSource} onChange={e => setTxSource(e.target.value)} placeholder="Square Bank" style={is} /></div>
