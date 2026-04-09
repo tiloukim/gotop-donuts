@@ -141,6 +141,41 @@ export default function Bookkeeping2026() {
     setMlFrom(''); setMlTo(''); setMlMiles(''); setMlPurpose('')
   }
 
+  // Store name → category mapping
+  const storeCatMap: [string[], string, string][] = [
+    // [keywords, storeName, category]
+    [['WALMART', 'WAL-MART', 'WAL MART', 'WM SUPERCENTER'], 'Walmart', 'COGS - Walmart'],
+    [['SAM\'S CLUB', 'SAMS CLUB', 'SAM\'S'], 'Sam\'s Club', 'COGS - Sam\'s Club'],
+    [['BROOKSHIRE', 'BROOKSHIRES'], 'Brookshire\'s', 'COGS - Brookshire\'s'],
+    [['SUPER 1', 'SUPER1'], 'Super 1 Foods', 'COGS - Suppliers'],
+    [['DAWN FOOD', 'DAWN PROD'], 'Dawn Food Products', 'COGS - Suppliers'],
+    [['SYSCO'], 'Sysco', 'COGS - Suppliers'],
+    [['IMPORT EMP'], 'Import Emp', 'COGS - Suppliers'],
+    [['BEN E KEITH', 'BENEKEITH'], 'Ben E. Keith', 'COGS - Suppliers'],
+    [['US FOODS'], 'US Foods', 'COGS - Suppliers'],
+    [['COSTCO'], 'Costco', 'COGS - Other'],
+    [['TARGET'], 'Target', 'COGS - Other'],
+    [['DOLLAR GENERAL', 'DOLLAR TREE', 'FAMILY DOLLAR'], 'Dollar Store', 'COGS - Other'],
+    [['HOME DEPOT'], 'Home Depot', 'Maintenance/Repairs'],
+    [['LOWES', 'LOWE\'S'], 'Lowe\'s', 'Maintenance/Repairs'],
+    [['HARBOR FREIGHT'], 'Harbor Freight', 'Maintenance/Repairs'],
+    [['ACE HARDWARE'], 'Ace Hardware', 'Maintenance/Repairs'],
+    [['EXXON', 'EXXONMOBIL'], 'Exxon', 'Vehicle/Fuel'],
+    [['SHELL'], 'Shell', 'Vehicle/Fuel'],
+    [['CHEVRON'], 'Chevron', 'Vehicle/Fuel'],
+    [['VALERO'], 'Valero', 'Vehicle/Fuel'],
+    [['QT ', 'QUIKTRIP'], 'QuikTrip', 'Vehicle/Fuel'],
+    [['RACETRAC'], 'RaceTrac', 'Vehicle/Fuel'],
+    [['TXU', 'TXU ENERGY'], 'TXU Energy', 'Electricity (TXU)'],
+    [['AT&T', 'ATT', 'FRONTIER', 'VEXUS'], 'AT&T', 'Internet/Phone'],
+    [['SIMPLISAFE', 'ADT'], 'SimpliSafe', 'Security'],
+    [['ALLSTATE', 'STATE FARM', 'NEXT INSUR', 'INSURANCE'], 'Insurance', 'Insurance'],
+    [['MCDONALD', 'WHATABURGER', 'SONIC', 'CHICK-FIL', 'SUBWAY', 'TACO BELL', 'WENDY'], 'Restaurant', 'Other'],
+    [['OFFICE DEPOT', 'STAPLES'], 'Office Depot', 'Office Supplies'],
+    [['CLOROX', 'CLEAN', 'JANITORIAL'], 'Cleaning', 'Cleaning Supplies'],
+    [['AUTOZONE', 'O\'REILLY', 'OREILLY', 'NAPA'], 'Auto Parts', 'Vehicle/Fuel'],
+  ]
+
   const scanReceipt = async (file: File) => {
     setScanning(true)
     setScanResult(null)
@@ -151,65 +186,82 @@ export default function Bookkeeping2026() {
       const Tesseract = (await import('tesseract.js')).default
       const { data: { text } } = await Tesseract.recognize(file, 'eng')
       const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
-      // Extract store name (usually first recognizable line)
-      let desc = ''
-      const knownStores: Record<string, string> = {
-        'WALMART': 'Walmart', 'WAL-MART': 'Walmart', 'SAM\'S CLUB': 'Sam\'s Club', 'SAMS CLUB': 'Sam\'s Club',
-        'TARGET': 'Target', 'BROOKSHIRE': 'Brookshire\'s', 'HOME DEPOT': 'Home Depot', 'LOWES': 'Lowe\'s',
-        'LOWE\'S': 'Lowe\'s', 'COSTCO': 'Costco', 'DOLLAR': 'Dollar Store', 'EXXON': 'Exxon',
-        'SHELL': 'Shell', 'HARBOR FREIGHT': 'Harbor Freight', 'MCDONALD': 'McDonald\'s',
-        'SUPER 1': 'Super 1 Foods', 'DAWN': 'Dawn Food Products', 'SYSCO': 'Sysco'
-      }
       const fullText = lines.join(' ').toUpperCase()
-      for (const [key, name] of Object.entries(knownStores)) {
-        if (fullText.includes(key)) { desc = name; break }
+
+      // 1. Extract store name + auto-category
+      let desc = '', cat = 'Other'
+      for (const [keywords, storeName, storeCat] of storeCatMap) {
+        if (keywords.some(k => fullText.includes(k))) { desc = storeName; cat = storeCat; break }
       }
-      if (!desc && lines.length > 0) desc = lines[0].replace(/[^a-zA-Z0-9\s&'-]/g, '').trim().slice(0, 40)
-      // Extract date
+      if (!desc && lines.length > 0) desc = lines[0].replace(/[^a-zA-Z0-9\s&'.-]/g, '').trim().slice(0, 40)
+
+      // 2. Extract date — try multiple formats
       let date = new Date().toISOString().slice(0, 10)
       const datePatterns = [
-        /(\d{1,2})[\/\-](\d{1,2})[\/\-](20\d{2})/, // MM/DD/YYYY
-        /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})/, // MM/DD/YY
+        /(\d{1,2})[\/\-](\d{1,2})[\/\-](20\d{2})/,  // MM/DD/YYYY
+        /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})/,     // MM/DD/YY
+        /(20\d{2})[\/\-](\d{1,2})[\/\-](\d{1,2})/,   // YYYY-MM-DD
+        /(\w{3})\s+(\d{1,2}),?\s*(20\d{2})/,          // Mon DD, YYYY
       ]
+      const monthNames: Record<string, string> = { JAN:'01',FEB:'02',MAR:'03',APR:'04',MAY:'05',JUN:'06',JUL:'07',AUG:'08',SEP:'09',OCT:'10',NOV:'11',DEC:'12' }
+      let dateFound = false
       for (const line of lines) {
-        for (const pat of datePatterns) {
+        if (dateFound) break
+        // Mon DD, YYYY
+        const mName = line.match(/(\w{3})\s+(\d{1,2}),?\s*(20\d{2})/i)
+        if (mName) {
+          const mo = monthNames[mName[1].toUpperCase()]
+          if (mo) { date = `${mName[3]}-${mo}-${mName[2].padStart(2, '0')}`; dateFound = true; continue }
+        }
+        // YYYY-MM-DD
+        const mISO = line.match(/(20\d{2})[\/\-](\d{1,2})[\/\-](\d{1,2})/)
+        if (mISO) { date = `${mISO[1]}-${mISO[2].padStart(2, '0')}-${mISO[3].padStart(2, '0')}`; dateFound = true; continue }
+        // MM/DD/YYYY or MM/DD/YY
+        for (const pat of datePatterns.slice(0, 2)) {
           const m = line.match(pat)
           if (m) {
             const yr = m[3].length === 2 ? '20' + m[3] : m[3]
             const mo = m[1].padStart(2, '0')
             const dy = m[2].padStart(2, '0')
-            if (parseInt(mo) <= 12 && parseInt(dy) <= 31) { date = `${yr}-${mo}-${dy}`; break }
+            if (parseInt(mo) <= 12 && parseInt(dy) <= 31) { date = `${yr}-${mo}-${dy}`; dateFound = true; break }
           }
         }
       }
-      // Extract total amount (look for TOTAL, AMOUNT DUE, etc.)
+
+      // 3. Extract total amount — prioritize TOTAL at bottom of receipt
       let amount = ''
-      const totalPatterns = [/TOTAL\s*[\$:]?\s*([\d,]+\.\d{2})/i, /AMOUNT\s*DUE\s*[\$:]?\s*([\d,]+\.\d{2})/i, /BALANCE\s*[\$:]?\s*([\d,]+\.\d{2})/i, /GRAND\s*TOTAL\s*[\$:]?\s*([\d,]+\.\d{2})/i]
+      const totalPatterns = [
+        /GRAND\s*TOTAL\s*[\$:]?\s*([\d,]+\.\d{2})/i,
+        /TOTAL\s*(?:DUE|SALE|PURCHASE)?\s*[\$:]?\s*([\d,]+\.\d{2})/i,
+        /AMOUNT\s*(?:DUE|OWED)?\s*[\$:]?\s*([\d,]+\.\d{2})/i,
+        /BALANCE\s*(?:DUE)?\s*[\$:]?\s*([\d,]+\.\d{2})/i,
+        /(?:VISA|MASTERCARD|DEBIT|CREDIT)\s*[\$:]?\s*([\d,]+\.\d{2})/i,
+        /TEND\s*[\$:]?\s*([\d,]+\.\d{2})/i,
+      ]
+      // Search from bottom up (totals are usually near the end)
       const reversedLines = [...lines].reverse()
       for (const line of reversedLines) {
         for (const pat of totalPatterns) {
           const m = line.match(pat)
-          if (m) { amount = m[1].replace(',', ''); break }
+          if (m) { amount = m[1].replace(/,/g, ''); break }
         }
         if (amount) break
       }
-      // If no total found, grab the largest dollar amount
+      // Fallback: largest dollar amount on the receipt
       if (!amount) {
         let maxVal = 0
         for (const line of lines) {
           const matches = line.match(/\$?\s*(\d+\.\d{2})/g)
           if (matches) for (const match of matches) {
-            const v = parseFloat(match.replace(/[\$\s]/g, ''))
-            if (v > maxVal && v < 10000) { maxVal = v; amount = v.toFixed(2) }
+            const v = parseFloat(match.replace(/[\$\s,]/g, ''))
+            if (v > maxVal && v < 50000) { maxVal = v; amount = v.toFixed(2) }
           }
         }
       }
-      // Auto-categorize
-      const d = desc.toUpperCase()
-      let cat = 'Other'
-      if (d.includes('WALMART') || d.includes('SAM') || d.includes('BROOKSHIRE') || d.includes('SUPER 1') || d.includes('DAWN') || d.includes('SYSCO')) cat = 'COGS - Suppliers'
-      else if (d.includes('LOWES') || d.includes('LOWE') || d.includes('HOME DEPOT') || d.includes('HARBOR')) cat = 'Maintenance/Repairs'
-      else if (d.includes('EXXON') || d.includes('SHELL') || d.includes('FUEL')) cat = 'Vehicle/Fuel'
+
+      // If category not in list, fall back to closest match or 'Other'
+      if (!allCats.includes(cat)) cat = allCats.find(c => c.toLowerCase().includes(cat.toLowerCase().split(' ')[0])) || 'Other'
+
       setScanResult({ date, desc, amount, category: cat })
     } catch (err) {
       console.error('OCR error:', err)
@@ -220,11 +272,18 @@ export default function Bookkeeping2026() {
 
   const applyReceipt = () => {
     if (!scanResult) return
-    setTxDate(scanResult.date)
-    setTxDesc(scanResult.desc)
-    setTxAmount(scanResult.amount)
-    setTxCat(scanResult.category)
-    setTxSource('Receipt Scan')
+    const amt = parseFloat(scanResult.amount)
+    if (!scanResult.desc || !amt) {
+      // If missing data, fill the form instead so user can complete it
+      setTxDate(scanResult.date)
+      setTxDesc(scanResult.desc)
+      setTxAmount(scanResult.amount)
+      setTxCat(scanResult.category)
+      setTxSource('Receipt Scan')
+    } else {
+      // Add directly to transactions
+      setTransactions(prev => [...prev, { id: Date.now().toString(), date: scanResult.date, desc: scanResult.desc, amount: amt, category: scanResult.category, type: 'expense', source: 'Receipt Scan' }])
+    }
     setShowReceiptModal(false)
     setReceiptPreview(null)
     setScanResult(null)
