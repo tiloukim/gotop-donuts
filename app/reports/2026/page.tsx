@@ -314,7 +314,19 @@ export default function Bookkeeping2026() {
               <div><label style={ls}>AMOUNT ($)</label><input type="number" value={txAmount} onChange={e => setTxAmount(e.target.value)} placeholder="0.00" style={is} /></div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
-              <div><label style={ls}>CATEGORY</label><input list="cat-list" value={txCat} onChange={e => setTxCat(e.target.value)} style={is} placeholder="Type or select category" /><datalist id="cat-list">{allCats.map(c => <option key={c} value={c} />)}</datalist></div>
+              <div><label style={ls}>CATEGORY</label>
+                {txCat === '__custom__' || (!EXPENSE_CATS.includes(txCat) && !customCats.includes(txCat) && txCat !== '') ? (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input value={txCat === '__custom__' ? '' : txCat} onChange={e => setTxCat(e.target.value)} style={{ ...is, flex: 1 }} placeholder="Type custom category" autoFocus />
+                    <button onClick={() => setTxCat(EXPENSE_CATS[0])} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap' }}>Cancel</button>
+                  </div>
+                ) : (
+                  <select value={txCat} onChange={e => setTxCat(e.target.value)} style={is}>
+                    {allCats.map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value="__custom__">+ Custom category...</option>
+                  </select>
+                )}
+              </div>
               <div><label style={ls}>SOURCE</label><input value={txSource} onChange={e => setTxSource(e.target.value)} placeholder="Square Bank" style={is} /></div>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
@@ -330,7 +342,7 @@ export default function Bookkeeping2026() {
                 <thead><tr style={{ borderBottom: '2px solid #e0e0e0' }}>{['Date','Description','Category','Source','Amount',''].map(h => <th key={h} style={{ textAlign: h === 'Amount' ? 'right' : 'left', padding: '8px', color: '#888', fontSize: 11 }}>{h}</th>)}</tr></thead>
                 <tbody>{[...transactions].reverse().slice(0, 100).map(t => <tr key={t.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
                   <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>{t.date}</td><td style={{ padding: '6px 8px' }}>{t.desc}</td>
-                  <td style={{ padding: '6px 8px' }}><input list="cat-list-row" defaultValue={t.category} onBlur={e => { const v = e.target.value.trim(); if (v && v !== t.category) setTransactions(p => p.map(x => x.id === t.id ? { ...x, category: v } : x)) }} style={{ background: '#f0f0f0', padding: '2px 8px', borderRadius: 10, fontSize: 11, border: 'none', width: '100%', minWidth: 100 }} /><datalist id="cat-list-row">{allCats.map(c => <option key={c} value={c} />)}</datalist></td>
+                  <td style={{ padding: '6px 8px' }}><select value={t.category} onChange={e => setTransactions(p => p.map(x => x.id === t.id ? { ...x, category: e.target.value } : x))} style={{ background: '#f0f0f0', padding: '2px 8px', borderRadius: 10, fontSize: 11, border: 'none', cursor: 'pointer' }}>{allCats.map(c => <option key={c} value={c}>{c}</option>)}</select></td>
                   <td style={{ padding: '6px 8px', color: '#888' }}>{t.source}</td><td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: '#D85A30' }}>{fmt(t.amount)}</td>
                   <td><button onClick={() => setTransactions(p => p.filter(x => x.id !== t.id))} style={{ background: 'none', border: 'none', color: '#ddd', cursor: 'pointer' }}>✕</button></td>
                 </tr>)}</tbody></table></div>}
@@ -354,7 +366,19 @@ export default function Bookkeeping2026() {
                   <div><label style={ls}>DATE</label><input type="date" value={scanResult.date} onChange={e => setScanResult({ ...scanResult, date: e.target.value })} style={is} /></div>
                   <div><label style={ls}>DESCRIPTION / STORE</label><input value={scanResult.desc} onChange={e => setScanResult({ ...scanResult, desc: e.target.value })} style={is} placeholder="Store name" /></div>
                   <div><label style={ls}>AMOUNT ($)</label><input type="number" value={scanResult.amount} onChange={e => setScanResult({ ...scanResult, amount: e.target.value })} style={is} placeholder="0.00" /></div>
-                  <div><label style={ls}>CATEGORY</label><input list="cat-list-scan" value={scanResult.category} onChange={e => setScanResult({ ...scanResult, category: e.target.value })} style={is} placeholder="Type or select category" /><datalist id="cat-list-scan">{allCats.map(c => <option key={c} value={c} />)}</datalist></div>
+                  <div><label style={ls}>CATEGORY</label>
+                    {scanResult.category === '__custom__' || (!EXPENSE_CATS.includes(scanResult.category) && !customCats.includes(scanResult.category) && scanResult.category !== '') ? (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <input value={scanResult.category === '__custom__' ? '' : scanResult.category} onChange={e => setScanResult({ ...scanResult, category: e.target.value })} style={{ ...is, flex: 1 }} placeholder="Type custom category" autoFocus />
+                        <button onClick={() => setScanResult({ ...scanResult, category: EXPENSE_CATS[0] })} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap' }}>Cancel</button>
+                      </div>
+                    ) : (
+                      <select value={scanResult.category} onChange={e => setScanResult({ ...scanResult, category: e.target.value })} style={is}>
+                        {allCats.map(c => <option key={c} value={c}>{c}</option>)}
+                        <option value="__custom__">+ Custom category...</option>
+                      </select>
+                    )}
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
                   <button onClick={applyReceipt} style={{ flex: 1, padding: '12px 20px', borderRadius: 8, background: '#085041', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer' }}>✓ Add to Expenses</button>
