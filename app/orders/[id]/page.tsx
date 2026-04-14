@@ -278,18 +278,25 @@ export default function OrderDetailPage() {
       )}
 
       {/* Delivery Photo — proof of delivery */}
-      {order.status === 'delivered' && order.delivery_photo_url && (
+      {order.status === 'delivered' && (order.delivery_photo_url || order.delivery_note) && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-6 mt-6">
           <h2 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
             <span className="text-xl">📸</span> Proof of Delivery
           </h2>
-          <img
-            src={order.delivery_photo_url}
-            alt="Delivery photo"
-            className="w-full rounded-lg object-cover max-h-80"
-          />
+          {order.delivery_photo_url && (
+            <img
+              src={order.delivery_photo_url}
+              alt="Delivery photo"
+              className="w-full rounded-lg object-cover max-h-80"
+            />
+          )}
+          {order.delivery_note && (
+            <p className="text-sm text-green-800 mt-3 bg-green-100/50 rounded-lg p-3">
+              <span className="font-medium">Note:</span> {order.delivery_note}
+            </p>
+          )}
           <p className="text-xs text-green-600 mt-2">
-            Photo taken at delivery on{' '}
+            Delivered on{' '}
             {new Date(order.updated_at).toLocaleDateString('en-US', {
               month: 'long',
               day: 'numeric',

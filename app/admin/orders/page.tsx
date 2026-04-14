@@ -34,6 +34,7 @@ export default function AdminOrdersPage() {
   const [deliveryPhotoFile, setDeliveryPhotoFile] = useState<File | null>(null)
   const [deliveryPhotoPreview, setDeliveryPhotoPreview] = useState<string | null>(null)
   const [deliveryPhotoUploading, setDeliveryPhotoUploading] = useState(false)
+  const [deliveryNote, setDeliveryNote] = useState('')
   const deliveryPhotoInputRef = useRef<HTMLInputElement>(null)
 
   // Sound state — default ON so staff don't miss orders
@@ -211,6 +212,7 @@ export default function AdminOrdersPage() {
       setDeliveryPhotoModal(orderId)
       setDeliveryPhotoFile(null)
       setDeliveryPhotoPreview(null)
+      setDeliveryNote('')
     } else {
       updateStatus(orderId, 'delivered')
     }
@@ -220,11 +222,12 @@ export default function AdminOrdersPage() {
     if (!deliveryPhotoModal) return
     setDeliveryPhotoUploading(true)
     try {
-      // Upload photo if provided
-      if (deliveryPhotoFile) {
+      // Upload photo and/or note
+      if (deliveryPhotoFile || deliveryNote.trim()) {
         const formData = new FormData()
-        formData.append('file', deliveryPhotoFile)
+        if (deliveryPhotoFile) formData.append('file', deliveryPhotoFile)
         formData.append('order_id', deliveryPhotoModal)
+        if (deliveryNote.trim()) formData.append('delivery_note', deliveryNote.trim())
         const uploadRes = await fetch('/api/admin/orders/delivery-photo', {
           method: 'POST',
           body: formData,
@@ -242,6 +245,7 @@ export default function AdminOrdersPage() {
     setDeliveryPhotoModal(null)
     setDeliveryPhotoFile(null)
     setDeliveryPhotoPreview(null)
+    setDeliveryNote('')
   }
 
   function onDeliveryPhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -828,6 +832,14 @@ export default function AdminOrdersPage() {
               </button>
             )}
 
+            <textarea
+              value={deliveryNote}
+              onChange={(e) => setDeliveryNote(e.target.value)}
+              placeholder="Add a delivery note (e.g. Left at front door, Handed to customer...)"
+              className="w-full border border-gray-300 rounded-lg p-3 text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              rows={2}
+            />
+
             <div className="flex gap-3">
               <button
                 onClick={submitDeliveryPhoto}
@@ -837,7 +849,7 @@ export default function AdminOrdersPage() {
                 {deliveryPhotoUploading ? 'Uploading...' : deliveryPhotoFile ? 'Upload & Mark Delivered' : 'Skip & Mark Delivered'}
               </button>
               <button
-                onClick={() => { setDeliveryPhotoModal(null); setDeliveryPhotoFile(null); setDeliveryPhotoPreview(null) }}
+                onClick={() => { setDeliveryPhotoModal(null); setDeliveryPhotoFile(null); setDeliveryPhotoPreview(null); setDeliveryNote('') }}
                 className="px-4 py-2.5 rounded-lg font-medium bg-gray-100 text-gray-600 hover:bg-gray-200"
               >
                 Cancel

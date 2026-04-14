@@ -15,8 +15,8 @@ create table if not exists profiles (
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, full_name)
-  values (new.id, new.raw_user_meta_data->>'full_name');
+  insert into public.profiles (id, full_name, phone)
+  values (new.id, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'phone');
   return new;
 end;
 $$ language plpgsql security definer;
@@ -77,6 +77,8 @@ create table if not exists orders (
   points_redeemed integer default 0,
   notes text,
   estimated_ready_at timestamptz,
+  delivery_photo_url text,
+  delivery_note text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

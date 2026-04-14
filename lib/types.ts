@@ -73,6 +73,7 @@ export interface Order {
   scheduled_at: string | null;
   estimated_ready_at: string | null;
   delivery_photo_url: string | null;
+  delivery_note: string | null;
   created_at: string;
   updated_at: string;
 }
