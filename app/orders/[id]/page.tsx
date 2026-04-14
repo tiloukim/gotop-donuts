@@ -106,7 +106,9 @@ export default function OrderDetailPage() {
             ? 'bg-red-100 text-red-700'
             : !isActive ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
         }`}>
-          {STATUS_LABELS[order.status]}
+          {order.status === 'picked_up' && order.order_type === 'delivery'
+            ? 'Delivered'
+            : STATUS_LABELS[order.status]}
         </span>
       </div>
 
@@ -271,6 +273,29 @@ export default function OrderDetailPage() {
           <h2 className="font-semibold mb-2">Delivery Address</h2>
           <p className="text-gray-600 text-sm">
             {order.delivery_address.street}, {order.delivery_address.city}, {order.delivery_address.state} {order.delivery_address.zip}
+          </p>
+        </div>
+      )}
+
+      {/* Delivery Photo — proof of delivery */}
+      {order.status === 'delivered' && order.delivery_photo_url && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6 mt-6">
+          <h2 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+            <span className="text-xl">📸</span> Proof of Delivery
+          </h2>
+          <img
+            src={order.delivery_photo_url}
+            alt="Delivery photo"
+            className="w-full rounded-lg object-cover max-h-80"
+          />
+          <p className="text-xs text-green-600 mt-2">
+            Photo taken at delivery on{' '}
+            {new Date(order.updated_at).toLocaleDateString('en-US', {
+              month: 'long',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+            })}
           </p>
         </div>
       )}

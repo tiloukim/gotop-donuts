@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { STATUS_LABELS } from '@/lib/constants'
 import type { OrderWithItems, OrderStatus } from '@/lib/types'
-import { RefreshCw, Volume2, VolumeX, Bell, BellOff, ChevronDown, ChevronRight, Navigation, Pencil, Check, X } from 'lucide-react'
+import { RefreshCw, Volume2, VolumeX, Bell, BellOff, ChevronDown, ChevronRight, Navigation, Pencil, Check, X, Camera } from 'lucide-react'
 import { useDriverTracking } from '@/hooks/useDriverTracking'
 
 interface EnrichedOrder extends OrderWithItems {
@@ -28,6 +28,13 @@ export default function AdminOrdersPage() {
   const [editingPickup, setEditingPickup] = useState<string | null>(null)
   const [editPickupDate, setEditPickupDate] = useState('')
   const [editPickupTime, setEditPickupTime] = useState('')
+
+  // Delivery photo state
+  const [deliveryPhotoModal, setDeliveryPhotoModal] = useState<string | null>(null) // order_id
+  const [deliveryPhotoFile, setDeliveryPhotoFile] = useState<File | null>(null)
+  const [deliveryPhotoPreview, setDeliveryPhotoPreview] = useState<string | null>(null)
+  const [deliveryPhotoUploading, setDeliveryPhotoUploading] = useState(false)
+  const deliveryPhotoInputRef = useRef<HTMLInputElement>(null)
 
   // Sound state — default ON so staff don't miss orders
   const [soundEnabled, setSoundEnabled] = useState(true)
@@ -197,6 +204,52 @@ export default function AdminOrdersPage() {
       console.error('Failed to update status:', e)
     }
     setUpdating(null)
+  }
+
+  function handleDeliveredClick(orderId: string, orderType: string) {
+    if (orderType === 'delivery') {
+      setDeliveryPhotoModal(orderId)
+      setDeliveryPhotoFile(null)
+      setDeliveryPhotoPreview(null)
+    } else {
+      updateStatus(orderId, 'delivered')
+    }
+  }
+
+  async function submitDeliveryPhoto() {
+    if (!deliveryPhotoModal) return
+    setDeliveryPhotoUploading(true)
+    try {
+      // Upload photo if provided
+      if (deliveryPhotoFile) {
+        const formData = new FormData()
+        formData.append('file', deliveryPhotoFile)
+        formData.append('order_id', deliveryPhotoModal)
+        const uploadRes = await fetch('/api/admin/orders/delivery-photo', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!uploadRes.ok) {
+          console.error('Photo upload failed')
+        }
+      }
+      // Mark as delivered
+      await updateStatus(deliveryPhotoModal, 'delivered')
+    } catch (e) {
+      console.error('Delivery photo submission failed:', e)
+    }
+    setDeliveryPhotoUploading(false)
+    setDeliveryPhotoModal(null)
+    setDeliveryPhotoFile(null)
+    setDeliveryPhotoPreview(null)
+  }
+
+  function onDeliveryPhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setDeliveryPhotoFile(file)
+    const url = URL.createObjectURL(file)
+    setDeliveryPhotoPreview(url)
   }
 
   async function cancelAndRefund() {
@@ -381,7 +434,7 @@ export default function AdminOrdersPage() {
                   <h3 className="font-bold text-lg">Order #{order.order_number}</h3>
                   <p className="text-sm text-gray-500">
                     {order.customer_name || order.customer_email || 'Guest'}
-                    {order.customer_phone && <span className="ml-2 text-gray-400">{order.customer_phone}</span>}
+                    {order.customer_phone && <a href={`tel:${order.customer_phone}`} className="ml-2 text-blue-500 hover:underline">{order.customer_phone}</a>}
                   </p>
                   <p className="text-sm text-gray-400">
                     {order.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'} &middot;{' '}
@@ -438,7 +491,9 @@ export default function AdminOrdersPage() {
                   <span className="text-lg font-bold">${Number(order.total).toFixed(2)}</span>
                   <div className="mt-1">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(order.status)}`}>
-                      {STATUS_LABELS[order.status]}
+                      {order.status === 'picked_up' && order.order_type === 'delivery'
+                        ? 'Delivered'
+                        : STATUS_LABELS[order.status]}
                     </span>
                   </div>
                 </div>
@@ -510,7 +565,7 @@ export default function AdminOrdersPage() {
                 {getFlowStatuses(order.order_type).map(s => (
                   <button
                     key={s}
-                    onClick={() => updateStatus(order.id, s)}
+                    onClick={() => s === 'delivered' ? handleDeliveredClick(order.id, order.order_type) : updateStatus(order.id, s)}
                     disabled={updating === order.id || order.status === s}
                     className={`text-xs px-3 py-1.5 rounded-lg font-medium ${
                       order.status === s
@@ -518,7 +573,9 @@ export default function AdminOrdersPage() {
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     } disabled:opacity-50`}
                   >
-                    {s === 'ready' && order.order_type === 'delivery' ? 'Ready for Delivery' : STATUS_LABELS[s]}
+                    {s === 'delivered' && order.order_type === 'delivery' ? (
+                      <span className="flex items-center gap-1"><Camera size={12} /> Delivered</span>
+                    ) : s === 'ready' && order.order_type === 'delivery' ? 'Ready for Delivery' : STATUS_LABELS[s]}
                   </button>
                 ))}
 
@@ -585,7 +642,7 @@ export default function AdminOrdersPage() {
                       <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                         <div><span className="text-gray-500">Customer:</span> {order.customer_name || 'Guest'}</div>
                         <div><span className="text-gray-500">Email:</span> {order.customer_email || '—'}</div>
-                        <div><span className="text-gray-500">Phone:</span> {order.customer_phone || '—'}</div>
+                        <div><span className="text-gray-500">Phone:</span> {order.customer_phone ? <a href={`tel:${order.customer_phone}`} className="text-blue-500 hover:underline">{order.customer_phone}</a> : '—'}</div>
                         <div><span className="text-gray-500">Type:</span> {order.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'}</div>
                         <div><span className="text-gray-500">Date:</span> {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
                         {order.cancel_reason && <div><span className="text-gray-500">Reason:</span> {order.cancel_reason}</div>}
@@ -659,7 +716,7 @@ export default function AdminOrdersPage() {
                       <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                         <div><span className="text-gray-500">Customer:</span> {order.customer_name || 'Guest'}</div>
                         <div><span className="text-gray-500">Email:</span> {order.customer_email || '—'}</div>
-                        <div><span className="text-gray-500">Phone:</span> {order.customer_phone || '—'}</div>
+                        <div><span className="text-gray-500">Phone:</span> {order.customer_phone ? <a href={`tel:${order.customer_phone}`} className="text-blue-500 hover:underline">{order.customer_phone}</a> : '—'}</div>
                         <div><span className="text-gray-500">Type:</span> {order.order_type === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'}</div>
                         <div><span className="text-gray-500">Date:</span> {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
                         {order.estimated_ready_at && <div><span className="text-gray-500">Scheduled:</span> {new Date(order.estimated_ready_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>}
@@ -731,6 +788,65 @@ export default function AdminOrdersPage() {
           )
         )}
       </div>
+      {/* Delivery Photo Modal */}
+      {deliveryPhotoModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm">
+            <h3 className="text-lg font-bold mb-1">Proof of Delivery</h3>
+            <p className="text-sm text-gray-500 mb-4">Take a photo of the delivered order at the door.</p>
+
+            <input
+              ref={deliveryPhotoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={onDeliveryPhotoSelect}
+              className="hidden"
+            />
+
+            {deliveryPhotoPreview ? (
+              <div className="mb-4">
+                <img
+                  src={deliveryPhotoPreview}
+                  alt="Delivery preview"
+                  className="w-full rounded-lg object-cover max-h-64"
+                />
+                <button
+                  onClick={() => { setDeliveryPhotoFile(null); setDeliveryPhotoPreview(null) }}
+                  className="text-xs text-red-500 mt-2 hover:underline"
+                >
+                  Remove photo
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => deliveryPhotoInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-gray-300 rounded-lg py-8 flex flex-col items-center gap-2 text-gray-400 hover:border-primary hover:text-primary transition-colors mb-4"
+              >
+                <Camera size={32} />
+                <span className="text-sm font-medium">Tap to take photo</span>
+              </button>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={submitDeliveryPhoto}
+                disabled={deliveryPhotoUploading}
+                className="flex-1 bg-primary text-white py-2.5 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50"
+              >
+                {deliveryPhotoUploading ? 'Uploading...' : deliveryPhotoFile ? 'Upload & Mark Delivered' : 'Skip & Mark Delivered'}
+              </button>
+              <button
+                onClick={() => { setDeliveryPhotoModal(null); setDeliveryPhotoFile(null); setDeliveryPhotoPreview(null) }}
+                className="px-4 py-2.5 rounded-lg font-medium bg-gray-100 text-gray-600 hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Refund Modal */}
       {refundModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

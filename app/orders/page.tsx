@@ -73,7 +73,9 @@ export default function OrdersPage() {
                         ? 'bg-red-100 text-red-700'
                         : 'bg-amber-100 text-amber-700'
                   }`}>
-                    {STATUS_LABELS[order.status]}
+                    {order.status === 'picked_up' && order.order_type === 'delivery'
+                      ? 'Delivered'
+                      : STATUS_LABELS[order.status]}
                   </span>
                   <p className="text-sm font-semibold mt-1">${order.total.toFixed(2)}</p>
                 </div>

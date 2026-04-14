@@ -95,8 +95,16 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold">${Number(order.total).toFixed(2)}</span>
-                  <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
-                    {STATUS_LABELS[order.status] || order.status}
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                    order.status === 'delivered' || order.status === 'picked_up'
+                      ? 'bg-green-100 text-green-700'
+                      : order.status === 'cancelled' || order.status === 'refunded'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {order.status === 'picked_up' && order.order_type === 'delivery'
+                      ? 'Delivered'
+                      : (STATUS_LABELS[order.status] || order.status)}
                   </span>
                 </div>
               </div>
