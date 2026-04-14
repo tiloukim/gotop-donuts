@@ -72,6 +72,7 @@ export interface Order {
   cancel_reason: string | null;
   scheduled_at: string | null;
   estimated_ready_at: string | null;
+  delivery_photo_url: string | null;
   created_at: string;
   updated_at: string;
 }
