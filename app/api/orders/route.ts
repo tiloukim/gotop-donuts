@@ -4,6 +4,7 @@ import { getSquareClient } from '@/lib/square';
 import { sendOrderNotification } from '@/lib/email';
 import { sendNewOrderPush } from '@/lib/push';
 import { TX_SALES_TAX, POINTS_PER_DOLLAR, REDEEM_POINTS, REDEEM_DISCOUNT, SERVICE_FEE_RATE, SERVICE_FEE_FIXED } from '@/lib/constants';
+import { checkShopOpenForASAP } from '@/lib/store-hours';
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import type { CartItem, DeliveryAddress, OrderType } from '@/lib/types';
@@ -72,6 +73,16 @@ export async function POST(request: NextRequest) {
   }
 
   const service = createServiceClient();
+
+  // ASAP orders only allowed when the shop is currently open. Scheduled
+  // orders (scheduledAt set) bypass this check — customers can schedule
+  // for any future date/time even when the shop is closed now.
+  if (!scheduledAt) {
+    const closedReason = await checkShopOpenForASAP(service, orderType);
+    if (closedReason) {
+      return NextResponse.json({ error: closedReason }, { status: 400 });
+    }
+  }
 
   // Build menu map — separate Square catalog items from web-only items
   const square = getSquareClient();
