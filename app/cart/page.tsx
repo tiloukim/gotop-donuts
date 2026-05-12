@@ -169,19 +169,29 @@ export default function CartPage() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-3">Order Type</h2>
         <div className="flex gap-3">
-          {(['pickup', 'delivery'] as OrderType[]).map((type) => (
-            <button
-              key={type}
-              onClick={() => cart.setOrderType(type)}
-              className={`flex-1 py-3 rounded-lg font-medium border-2 transition-colors ${
-                cart.orderType === type
-                  ? 'border-primary bg-primary/5 text-primary'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
-              }`}
-            >
-              {type === 'pickup' ? '🏪 Pickup' : '🚗 Delivery'}
-            </button>
-          ))}
+          {(['pickup', 'delivery'] as OrderType[]).map((type) => {
+            const isDelivery = type === 'delivery';
+            const handleClick = () => {
+              if (isDelivery) {
+                window.location.href = 'https://donutdash.app/shops/top-donuts';
+                return;
+              }
+              cart.setOrderType(type);
+            };
+            return (
+              <button
+                key={type}
+                onClick={handleClick}
+                className={`flex-1 py-3 rounded-lg font-medium border-2 transition-colors ${
+                  cart.orderType === type
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                {type === 'pickup' ? '🏪 Pickup' : '🚗 Delivery'}
+              </button>
+            );
+          })}
         </div>
       </div>
 
