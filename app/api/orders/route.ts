@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
     tip: tipAmount,
     scheduledAt,
     sourceId,
+    fullName,
     phone,
     notes,
     giftCardCode,
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
     tip: number;
     scheduledAt: string | null;
     sourceId: string;
+    fullName?: string;
     phone?: string;
     notes: string;
     giftCardCode?: string;
@@ -72,6 +74,17 @@ export async function POST(request: NextRequest) {
 
   if (!items?.length || !sourceId) {
     return NextResponse.json({ error: 'Items and payment source required' }, { status: 400 });
+  }
+
+  // An email address is required so we can send order confirmations.
+  if (!user.email) {
+    return NextResponse.json({ error: 'An email address is required to place your order' }, { status: 400 });
+  }
+
+  // A full name is required so we know who the order is for.
+  const contactName = (fullName || '').trim();
+  if (contactName.length < 2) {
+    return NextResponse.json({ error: 'Your full name is required to place your order' }, { status: 400 });
   }
 
   // A valid contact phone number is required so we can reach the customer.
@@ -264,16 +277,17 @@ export async function POST(request: NextRequest) {
       .select('full_name, phone')
       .eq('id', user.id)
       .single();
-    const displayName = customerProfile?.full_name || user.user_metadata?.full_name || user.email || 'Online Customer';
+    const displayName = customerProfile?.full_name || contactName || user.user_metadata?.full_name || user.email || 'Online Customer';
     // Prefer the saved profile phone; fall back to the one submitted at checkout.
     const customerPhone = customerProfile?.phone || contactPhone;
 
-    // Persist the checkout phone to the profile if it wasn't saved before.
-    if (!customerProfile?.phone && contactPhone) {
-      await service
-        .from('profiles')
-        .update({ phone: contactPhone, updated_at: new Date().toISOString() })
-        .eq('id', user.id);
+    // Persist the checkout name/phone to the profile if they weren't saved before.
+    const profilePatch: Record<string, string> = {};
+    if (!customerProfile?.full_name && contactName) profilePatch.full_name = contactName;
+    if (!customerProfile?.phone && contactPhone) profilePatch.phone = contactPhone;
+    if (Object.keys(profilePatch).length > 0) {
+      profilePatch.updated_at = new Date().toISOString();
+      await service.from('profiles').update(profilePatch).eq('id', user.id);
     }
 
     let squareOrderId: string | undefined;

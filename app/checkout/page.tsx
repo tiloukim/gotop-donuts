@@ -30,6 +30,8 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [phone, setPhone] = useState('');
   const [phoneSaving, setPhoneSaving] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
 
   // Gift card state
   const [giftCardCode, setGiftCardCode] = useState('');
@@ -74,6 +76,7 @@ export default function CheckoutPage() {
       if (data) {
         setProfile(data);
         if (data.phone) setPhone(data.phone);
+        if (data.full_name) setFullName(data.full_name);
       }
     });
 
@@ -269,9 +272,24 @@ export default function CheckoutPage() {
     setPhoneSaving(false);
   }
 
+  async function saveName() {
+    if (!profile || fullName.trim().length < 2) return;
+    setNameSaving(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('profiles')
+      .update({ full_name: fullName.trim(), updated_at: new Date().toISOString() })
+      .eq('id', profile.id);
+    if (!error) {
+      setProfile({ ...profile, full_name: fullName.trim() });
+    }
+    setNameSaving(false);
+  }
+
   // A valid contact phone must have at least 10 digits (US number).
   const phoneDigits = (profile?.phone || phone).replace(/\D/g, '');
   const hasPhone = phoneDigits.length >= 10;
+  const hasName = (profile?.full_name || fullName).trim().length >= 2;
   const hasNote = !!notes.trim();
   // Scheduled orders need both a date and time. Pickup is always scheduled.
   const scheduleIncomplete = scheduleMode === 'scheduled' && (!scheduleDate || !scheduleTime);
@@ -282,12 +300,20 @@ export default function CheckoutPage() {
   const chargeAmount = Math.max(0, orderTotal - giftCardDiscount);
 
   async function handleTokenize(sourceId: string) {
+    const contactName = (profile?.full_name || fullName).trim();
+    if (contactName.length < 2) {
+      setError('Your full name is required to place your order.');
+      return;
+    }
     const contactPhone = (profile?.phone || phone).trim();
     if (contactPhone.replace(/\D/g, '').length < 10) {
       setError('A valid phone number (at least 10 digits) is required to place your order.');
       return;
     }
-    // Make sure the account carries the phone before the order is placed.
+    // Make sure the account carries the name and phone before the order is placed.
+    if (profile && !profile.full_name) {
+      await saveName();
+    }
     if (profile && !profile.phone) {
       await savePhone();
     }
@@ -317,6 +343,7 @@ export default function CheckoutPage() {
           tip: cart.tip,
           scheduledAt: getScheduledAt(),
           sourceId,
+          fullName: contactName,
           phone: contactPhone,
           notes,
           ...(giftCardApplied && giftCardDiscount > 0 && {
@@ -370,6 +397,37 @@ export default function CheckoutPage() {
           ))}
         </div>
       </section>
+
+      {/* Full Name (required on account) */}
+      {profile && !hasName && (
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-1">Full Name <span className="text-red-500">*</span></h2>
+          <p className="text-sm text-gray-500 mb-3">
+            Required so we know who the order is for. We’ll save it to your account.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Jane Doe"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+            />
+            {fullName.trim().length >= 2 && (
+              <button
+                onClick={saveName}
+                disabled={nameSaving}
+                className="bg-primary text-white px-5 py-3 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50"
+              >
+                {nameSaving ? '...' : 'Save'}
+              </button>
+            )}
+          </div>
+          <p className="text-red-500 text-sm mt-1">
+            Enter your full name to place an order.
+          </p>
+        </section>
+      )}
 
       {/* Phone Number (required on account) */}
       {profile && !hasPhone && (
@@ -777,7 +835,11 @@ export default function CheckoutPage() {
       {/* Payment */}
       <section>
         <h2 className="text-lg font-semibold mb-3">Payment</h2>
-        {!hasPhone ? (
+        {!hasName ? (
+          <div className="bg-amber-50 text-amber-700 p-4 rounded-lg text-sm font-medium">
+            Please provide your full name above before proceeding to payment.
+          </div>
+        ) : !hasPhone ? (
           <div className="bg-amber-50 text-amber-700 p-4 rounded-lg text-sm font-medium">
             Please provide your phone number above before proceeding to payment.
           </div>

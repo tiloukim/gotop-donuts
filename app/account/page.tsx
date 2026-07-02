@@ -70,11 +70,12 @@ export default function AccountPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Full Name <span className="text-red-500">*</span></label>
           <input
             type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
+            required
             className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
           />
         </div>
