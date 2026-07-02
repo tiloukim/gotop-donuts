@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+import { toE164 } from '@/lib/phone';
 
 export default function SignupPage() {
   const [fullName, setFullName] = useState('');
@@ -15,11 +16,60 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [captchaToken, setCaptchaToken] = useState('');
+  // Phone verification (Telnyx) state
+  const [code, setCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [verifyError, setVerifyError] = useState('');
   const turnstileRef = useRef<TurnstileInstance>(null);
   const router = useRouter();
 
+  const phoneValid = !!toE164(phoneNum);
+
+  async function sendCode() {
+    setVerifyError('');
+    setSendingCode(true);
+    try {
+      const res = await fetch('/api/verify/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phoneNum }),
+      });
+      const data = await res.json();
+      if (!res.ok) setVerifyError(data.error || 'Could not send code');
+      else setCodeSent(true);
+    } catch {
+      setVerifyError('Could not send code');
+    }
+    setSendingCode(false);
+  }
+
+  async function verifyCode() {
+    setVerifyError('');
+    setVerifyingCode(true);
+    try {
+      const res = await fetch('/api/verify/check-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phoneNum, code }),
+      });
+      const data = await res.json();
+      if (res.ok && data.verified) setPhoneVerified(true);
+      else setVerifyError(data.error || 'Incorrect code');
+    } catch {
+      setVerifyError('Could not verify code');
+    }
+    setVerifyingCode(false);
+  }
+
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
+    if (!phoneVerified) {
+      setError('Please verify your phone number before creating your account.');
+      return;
+    }
     setLoading(true);
     setError('');
 
@@ -79,7 +129,7 @@ export default function SignupPage() {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Full Name <span className="text-red-500">*</span></label>
           <input
             type="text"
             value={fullName}
@@ -91,18 +141,69 @@ export default function SignupPage() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
-          <input
-            type="tel"
-            value={phoneNum}
-            onChange={(e) => setPhoneNum(e.target.value)}
-            required
-            placeholder="(903) 555-0199"
-            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-          />
+          <div className="flex gap-2">
+            <input
+              type="tel"
+              value={phoneNum}
+              onChange={(e) => {
+                setPhoneNum(e.target.value);
+                setPhoneVerified(false);
+                setCodeSent(false);
+                setCode('');
+                setVerifyError('');
+              }}
+              required
+              readOnly={phoneVerified}
+              placeholder="(903) 555-0199"
+              className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-primary focus:border-transparent outline-none ${
+                phoneVerified ? 'border-green-400 bg-green-50 text-gray-600' : 'border-gray-300'
+              }`}
+            />
+            {!phoneVerified && (
+              <button
+                type="button"
+                onClick={sendCode}
+                disabled={!phoneValid || sendingCode}
+                className="whitespace-nowrap bg-gray-800 text-white px-4 py-3 rounded-lg font-medium hover:bg-gray-700 disabled:opacity-50"
+              >
+                {sendingCode ? '...' : codeSent ? 'Resend' : 'Send Code'}
+              </button>
+            )}
+          </div>
+
+          {phoneVerified && (
+            <p className="text-green-600 text-sm mt-1 font-medium">✓ Phone number verified</p>
+          )}
+
+          {codeSent && !phoneVerified && (
+            <div className="mt-2">
+              <p className="text-sm text-gray-500 mb-1">Enter the code we texted to your phone.</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="Verification code"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none tracking-widest"
+                />
+                <button
+                  type="button"
+                  onClick={verifyCode}
+                  disabled={!code.trim() || verifyingCode}
+                  className="whitespace-nowrap bg-primary text-white px-4 py-3 rounded-lg font-medium hover:bg-primary-dark disabled:opacity-50"
+                >
+                  {verifyingCode ? '...' : 'Verify'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {verifyError && <p className="text-red-500 text-sm mt-1">{verifyError}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
           <input
             type="email"
             value={email}
@@ -113,7 +214,7 @@ export default function SignupPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Password <span className="text-red-500">*</span></label>
           <input
             type="password"
             value={password}
@@ -134,10 +235,10 @@ export default function SignupPage() {
 
         <button
           type="submit"
-          disabled={loading || !captchaToken}
+          disabled={loading || !captchaToken || !phoneVerified}
           className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary-dark disabled:opacity-50"
         >
-          {loading ? 'Creating account...' : 'Create Account'}
+          {loading ? 'Creating account...' : !phoneVerified ? 'Verify phone to continue' : 'Create Account'}
         </button>
       </form>
 
