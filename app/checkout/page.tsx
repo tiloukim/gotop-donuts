@@ -269,7 +269,9 @@ export default function CheckoutPage() {
     setPhoneSaving(false);
   }
 
-  const hasPhone = !!(profile?.phone || phone.trim());
+  // A valid contact phone must have at least 10 digits (US number).
+  const phoneDigits = (profile?.phone || phone).replace(/\D/g, '');
+  const hasPhone = phoneDigits.length >= 10;
   const hasNote = !!notes.trim();
   // Scheduled orders need both a date and time. Pickup is always scheduled.
   const scheduleIncomplete = scheduleMode === 'scheduled' && (!scheduleDate || !scheduleTime);
@@ -281,9 +283,13 @@ export default function CheckoutPage() {
 
   async function handleTokenize(sourceId: string) {
     const contactPhone = (profile?.phone || phone).trim();
-    if (!contactPhone) {
-      setError('A phone number is required to place your order.');
+    if (contactPhone.replace(/\D/g, '').length < 10) {
+      setError('A valid phone number (at least 10 digits) is required to place your order.');
       return;
+    }
+    // Make sure the account carries the phone before the order is placed.
+    if (profile && !profile.phone) {
+      await savePhone();
     }
     if (!notes.trim()) {
       setError('A note is required to place your order.');
@@ -365,11 +371,13 @@ export default function CheckoutPage() {
         </div>
       </section>
 
-      {/* Phone Number (required) */}
-      {profile && !profile.phone && (
+      {/* Phone Number (required on account) */}
+      {profile && !hasPhone && (
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-1">Phone Number <span className="text-red-500">*</span></h2>
-          <p className="text-sm text-gray-500 mb-3">Required so we can contact you about your order.</p>
+          <p className="text-sm text-gray-500 mb-3">
+            Required so we can contact you about your order. We’ll save it to your account.
+          </p>
           <div className="flex gap-2">
             <input
               type="tel"
@@ -378,7 +386,7 @@ export default function CheckoutPage() {
               onChange={(e) => setPhone(e.target.value)}
               className="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
             />
-            {phone.trim() && !profile.phone && (
+            {phone.replace(/\D/g, '').length >= 10 && (
               <button
                 onClick={savePhone}
                 disabled={phoneSaving}
@@ -388,9 +396,9 @@ export default function CheckoutPage() {
               </button>
             )}
           </div>
-          {!phone.trim() && (
-            <p className="text-red-500 text-sm mt-1">Phone number is required to place an order.</p>
-          )}
+          <p className="text-red-500 text-sm mt-1">
+            Enter a valid phone number (at least 10 digits) to place an order.
+          </p>
         </section>
       )}
 

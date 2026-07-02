@@ -74,10 +74,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Items and payment source required' }, { status: 400 });
   }
 
-  // A contact phone number is required so we can reach the customer.
+  // A valid contact phone number is required so we can reach the customer.
   const contactPhone = (phone || '').trim();
-  if (!contactPhone) {
-    return NextResponse.json({ error: 'A phone number is required to place your order' }, { status: 400 });
+  if (contactPhone.replace(/\D/g, '').length < 10) {
+    return NextResponse.json({ error: 'A valid phone number is required to place your order' }, { status: 400 });
   }
 
   // A note is required on every order.

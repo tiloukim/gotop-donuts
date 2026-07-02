@@ -80,11 +80,12 @@ export default function AccountPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Phone <span className="text-red-500">*</span></label>
           <input
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
+            required
             placeholder="(903) 555-0199"
             className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
           />

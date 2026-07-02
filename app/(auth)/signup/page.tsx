@@ -8,6 +8,7 @@ import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 
 export default function SignupPage() {
   const [fullName, setFullName] = useState('');
+  const [phoneNum, setPhoneNum] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -27,7 +28,7 @@ export default function SignupPage() {
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: { full_name: fullName, phone: phoneNum },
         captchaToken,
       },
     });
@@ -84,6 +85,18 @@ export default function SignupPage() {
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             required
+            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
+          <input
+            type="tel"
+            value={phoneNum}
+            onChange={(e) => setPhoneNum(e.target.value)}
+            required
+            placeholder="(903) 555-0199"
             className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
           />
         </div>
