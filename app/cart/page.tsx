@@ -24,9 +24,14 @@ export default function CartPage() {
   const cart = useCartStore();
   const { items, removeItem, updateQuantity, updateInstructions, getSubtotal, getTax, getTotal } = cart;
   const [storeHours, setStoreHours] = useState<StoreHoursDay[]>([]);
-  const [scheduleMode, setScheduleMode] = useState<'asap' | 'scheduled'>('asap');
+  // Pickup is scheduled-only (no ASAP); delivery keeps ASAP.
+  const [scheduleMode, setScheduleMode] = useState<'asap' | 'scheduled'>('scheduled');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
+  const [notes, setNotes] = useState(() => {
+    if (typeof window !== 'undefined') return sessionStorage.getItem('order_notes') || '';
+    return '';
+  });
 
   useEffect(() => {
     fetch('/api/hours')
@@ -34,6 +39,27 @@ export default function CartPage() {
       .then(d => { if (d.hours) setStoreHours(d.hours); })
       .catch(() => {});
   }, []);
+
+  // Pickup is scheduled-only — never allow ASAP for pickup.
+  useEffect(() => {
+    if (cart.orderType === 'pickup') setScheduleMode('scheduled');
+  }, [cart.orderType]);
+
+  // Auto-default the customer into a valid pickup/delivery date + time once
+  // store hours load: first open day and its earliest available slot.
+  useEffect(() => {
+    if (scheduleMode !== 'scheduled' || storeHours.length === 0 || scheduleDate) return;
+    const firstOpen = getAvailableDates().find((d) => !getHoursForDate(d).is_closed);
+    if (!firstOpen) return;
+    const slots = getTimeSlots(firstOpen);
+    if (slots.length === 0) return;
+    setScheduleDate(firstOpen);
+    setScheduleTime(slots[0].value);
+    const [h, m] = slots[0].value.split(':');
+    const dt = new Date(firstOpen);
+    dt.setHours(Number(h), Number(m), 0, 0);
+    cart.setScheduledAt(dt.toISOString());
+  }, [storeHours, scheduleMode, scheduleDate, cart.orderType]);
 
   function toLocalDateStr(d: Date): string {
     const y = d.getFullYear();
@@ -197,34 +223,42 @@ export default function CartPage() {
 
       {/* Pickup / Delivery Time */}
       <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-3">
-          {cart.orderType === 'pickup' ? 'Pickup' : 'Delivery'} Time
+        <h2 className="text-lg font-semibold mb-1">
+          {cart.orderType === 'pickup' ? 'Pickup' : 'Delivery'} Time <span className="text-red-500">*</span>
         </h2>
-        <div className="flex gap-3 mb-3">
-          <button
-            onClick={() => {
-              setScheduleMode('asap');
-              cart.setScheduledAt(null);
-            }}
-            className={`flex-1 py-3 rounded-lg font-medium border-2 transition-colors ${
-              scheduleMode === 'asap'
-                ? 'border-primary bg-primary/5 text-primary'
-                : 'border-gray-200 text-gray-600 hover:border-gray-300'
-            }`}
-          >
-            ASAP (~20 min)
-          </button>
-          <button
-            onClick={() => setScheduleMode('scheduled')}
-            className={`flex-1 py-3 rounded-lg font-medium border-2 transition-colors ${
-              scheduleMode === 'scheduled'
-                ? 'border-primary bg-primary/5 text-primary'
-                : 'border-gray-200 text-gray-600 hover:border-gray-300'
-            }`}
-          >
-            Schedule for Later
-          </button>
-        </div>
+        <p className="text-sm text-gray-500 mb-3">
+          {cart.orderType === 'pickup'
+            ? 'Choose the date and time you’ll pick up your order.'
+            : 'Choose when you’d like your order.'}
+        </p>
+        {/* Pickup is scheduled-only — the ASAP toggle is delivery-only. */}
+        {cart.orderType === 'delivery' && (
+          <div className="flex gap-3 mb-3">
+            <button
+              onClick={() => {
+                setScheduleMode('asap');
+                cart.setScheduledAt(null);
+              }}
+              className={`flex-1 py-3 rounded-lg font-medium border-2 transition-colors ${
+                scheduleMode === 'asap'
+                  ? 'border-primary bg-primary/5 text-primary'
+                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              ASAP (~20 min)
+            </button>
+            <button
+              onClick={() => setScheduleMode('scheduled')}
+              className={`flex-1 py-3 rounded-lg font-medium border-2 transition-colors ${
+                scheduleMode === 'scheduled'
+                  ? 'border-primary bg-primary/5 text-primary'
+                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              Schedule for Later
+            </button>
+          </div>
+        )}
         {scheduleMode === 'scheduled' && (
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -285,16 +319,25 @@ export default function CartPage() {
         )}
       </div>
 
-      {/* Special Notes */}
+      {/* Special Notes (required) */}
       <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-3">Special Requests</h2>
+        <h2 className="text-lg font-semibold mb-1">Order Note <span className="text-red-500">*</span></h2>
+        <p className="text-sm text-gray-500 mb-3">
+          Required — tell us anything we need to prepare your order (e.g. flavors, box preference, allergies).
+        </p>
         <textarea
-          placeholder="Any special requests for your order..."
-          defaultValue={typeof window !== 'undefined' ? sessionStorage.getItem('order_notes') || '' : ''}
-          onChange={(e) => sessionStorage.setItem('order_notes', e.target.value)}
+          placeholder="Add a note for your order..."
+          value={notes}
+          onChange={(e) => {
+            setNotes(e.target.value);
+            sessionStorage.setItem('order_notes', e.target.value);
+          }}
           className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none"
           rows={3}
         />
+        {!notes.trim() && (
+          <p className="text-red-500 text-sm mt-1">A note is required to place your order.</p>
+        )}
       </div>
 
       {/* Summary */}
@@ -341,12 +384,30 @@ export default function CartPage() {
           </div>
         )}
 
-        <Link
-          href="/checkout"
-          className="block w-full bg-primary text-white text-center py-3 rounded-lg font-semibold hover:bg-primary-dark mt-4"
-        >
-          Proceed to Checkout
-        </Link>
+        {(() => {
+          const scheduleIncomplete = scheduleMode === 'scheduled' && (!scheduleDate || !scheduleTime);
+          const canCheckout = notes.trim() && !scheduleIncomplete;
+          if (!canCheckout) {
+            return (
+              <button
+                disabled
+                className="block w-full bg-gray-300 text-gray-500 text-center py-3 rounded-lg font-semibold mt-4 cursor-not-allowed"
+              >
+                {!notes.trim()
+                  ? 'Add an order note to continue'
+                  : `Select a ${cart.orderType === 'pickup' ? 'pickup' : 'delivery'} date and time`}
+              </button>
+            );
+          }
+          return (
+            <Link
+              href="/checkout"
+              className="block w-full bg-primary text-white text-center py-3 rounded-lg font-semibold hover:bg-primary-dark mt-4"
+            >
+              Proceed to Checkout
+            </Link>
+          );
+        })()}
       </div>
     </div>
   );
