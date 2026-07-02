@@ -28,6 +28,8 @@ export default function CheckoutPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [phoneSaving, setPhoneSaving] = useState(false);
 
   // Gift card state
   const [giftCardCode, setGiftCardCode] = useState('');
@@ -51,8 +53,8 @@ export default function CheckoutPage() {
   // Store hours from DB
   const [storeHours, setStoreHours] = useState<StoreHoursDay[]>([]);
 
-  // Scheduling state
-  const [scheduleMode, setScheduleMode] = useState<'asap' | 'scheduled'>('asap');
+  // Scheduling state. Pickup is scheduled-only (no ASAP); delivery keeps ASAP.
+  const [scheduleMode, setScheduleMode] = useState<'asap' | 'scheduled'>('scheduled');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
 
@@ -69,7 +71,10 @@ export default function CheckoutPage() {
         return;
       }
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      if (data) setProfile(data);
+      if (data) {
+        setProfile(data);
+        if (data.phone) setPhone(data.phone);
+      }
     });
 
     // Fetch store hours
@@ -78,6 +83,23 @@ export default function CheckoutPage() {
       .then(d => { if (d.hours) setStoreHours(d.hours); })
       .catch(() => {});
   }, []);
+
+  // Pickup is scheduled-only — never allow ASAP for pickup.
+  useEffect(() => {
+    if (cart.orderType === 'pickup') setScheduleMode('scheduled');
+  }, [cart.orderType]);
+
+  // Auto-default the customer into a valid pickup/delivery date + time.
+  // Runs once store hours load (and whenever no date is selected yet) so the
+  // pickers land pre-filled with the first open day and its earliest slot.
+  useEffect(() => {
+    if (scheduleMode !== 'scheduled' || storeHours.length === 0 || scheduleDate) return;
+    const firstOpen = getAvailableDates().find((d) => !getHoursForDate(d).is_closed);
+    if (!firstOpen) return;
+    setScheduleDate(firstOpen);
+    const slots = getTimeSlots(firstOpen);
+    if (slots.length > 0) setScheduleTime(slots[0].value);
+  }, [storeHours, scheduleMode, scheduleDate, cart.orderType]);
 
   // Format date as YYYY-MM-DD in local timezone
   function toLocalDateStr(d: Date): string {
@@ -233,12 +255,45 @@ export default function CheckoutPage() {
     setGiftCardError('');
   }
 
+  async function savePhone() {
+    if (!profile || !phone.trim()) return;
+    setPhoneSaving(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('profiles')
+      .update({ phone: phone.trim(), updated_at: new Date().toISOString() })
+      .eq('id', profile.id);
+    if (!error) {
+      setProfile({ ...profile, phone: phone.trim() });
+    }
+    setPhoneSaving(false);
+  }
+
+  const hasPhone = !!(profile?.phone || phone.trim());
+  const hasNote = !!notes.trim();
+  // Scheduled orders need both a date and time. Pickup is always scheduled.
+  const scheduleIncomplete = scheduleMode === 'scheduled' && (!scheduleDate || !scheduleTime);
+
   // Calculate how much the gift card covers
   const orderTotal = cart.getTotal();
   const giftCardDiscount = giftCardApplied ? Math.min(giftCardBalance, orderTotal) : 0;
   const chargeAmount = Math.max(0, orderTotal - giftCardDiscount);
 
   async function handleTokenize(sourceId: string) {
+    const contactPhone = (profile?.phone || phone).trim();
+    if (!contactPhone) {
+      setError('A phone number is required to place your order.');
+      return;
+    }
+    if (!notes.trim()) {
+      setError('A note is required to place your order.');
+      return;
+    }
+    if (scheduleIncomplete) {
+      setError(`Please select a ${cart.orderType === 'pickup' ? 'pickup' : 'delivery'} date and time.`);
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -256,6 +311,7 @@ export default function CheckoutPage() {
           tip: cart.tip,
           scheduledAt: getScheduledAt(),
           sourceId,
+          phone: contactPhone,
           notes,
           ...(giftCardApplied && giftCardDiscount > 0 && {
             giftCardCode: giftCardCode.trim(),
@@ -308,6 +364,35 @@ export default function CheckoutPage() {
           ))}
         </div>
       </section>
+
+      {/* Phone Number (required) */}
+      {profile && !profile.phone && (
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-1">Phone Number <span className="text-red-500">*</span></h2>
+          <p className="text-sm text-gray-500 mb-3">Required so we can contact you about your order.</p>
+          <div className="flex gap-2">
+            <input
+              type="tel"
+              placeholder="(903) 555-0199"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+            />
+            {phone.trim() && !profile.phone && (
+              <button
+                onClick={savePhone}
+                disabled={phoneSaving}
+                className="bg-primary text-white px-5 py-3 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50"
+              >
+                {phoneSaving ? '...' : 'Save'}
+              </button>
+            )}
+          </div>
+          {!phone.trim() && (
+            <p className="text-red-500 text-sm mt-1">Phone number is required to place an order.</p>
+          )}
+        </section>
+      )}
 
       {/* Delivery Address */}
       {cart.orderType === 'delivery' && (
@@ -393,34 +478,42 @@ export default function CheckoutPage() {
 
       {/* Pickup/Delivery Time */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">
-          {cart.orderType === 'pickup' ? 'Pickup' : 'Delivery'} Time
+        <h2 className="text-lg font-semibold mb-1">
+          {cart.orderType === 'pickup' ? 'Pickup' : 'Delivery'} Time <span className="text-red-500">*</span>
         </h2>
-        <div className="flex gap-3 mb-3">
-          <button
-            onClick={() => {
-              setScheduleMode('asap');
-              cart.setScheduledAt(null);
-            }}
-            className={`flex-1 py-3 rounded-lg font-medium border-2 transition-colors ${
-              scheduleMode === 'asap'
-                ? 'border-primary bg-primary/5 text-primary'
-                : 'border-gray-200 text-gray-600 hover:border-gray-300'
-            }`}
-          >
-            ASAP (~20 min)
-          </button>
-          <button
-            onClick={() => setScheduleMode('scheduled')}
-            className={`flex-1 py-3 rounded-lg font-medium border-2 transition-colors ${
-              scheduleMode === 'scheduled'
-                ? 'border-primary bg-primary/5 text-primary'
-                : 'border-gray-200 text-gray-600 hover:border-gray-300'
-            }`}
-          >
-            Schedule for Later
-          </button>
-        </div>
+        <p className="text-sm text-gray-500 mb-3">
+          {cart.orderType === 'pickup'
+            ? 'Choose the date and time you’ll pick up your order.'
+            : 'Choose when you’d like your order.'}
+        </p>
+        {/* Pickup is scheduled-only — the ASAP toggle is delivery-only. */}
+        {cart.orderType === 'delivery' && (
+          <div className="flex gap-3 mb-3">
+            <button
+              onClick={() => {
+                setScheduleMode('asap');
+                cart.setScheduledAt(null);
+              }}
+              className={`flex-1 py-3 rounded-lg font-medium border-2 transition-colors ${
+                scheduleMode === 'asap'
+                  ? 'border-primary bg-primary/5 text-primary'
+                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              ASAP (~20 min)
+            </button>
+            <button
+              onClick={() => setScheduleMode('scheduled')}
+              className={`flex-1 py-3 rounded-lg font-medium border-2 transition-colors ${
+                scheduleMode === 'scheduled'
+                  ? 'border-primary bg-primary/5 text-primary'
+                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              Schedule for Later
+            </button>
+          </div>
+        )}
         {scheduleMode === 'scheduled' && (
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -477,16 +570,22 @@ export default function CheckoutPage() {
         )}
       </section>
 
-      {/* Notes */}
+      {/* Notes (required) */}
       <section className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">Order Notes</h2>
+        <h2 className="text-lg font-semibold mb-1">Order Note <span className="text-red-500">*</span></h2>
+        <p className="text-sm text-gray-500 mb-3">
+          Required — tell us anything we need to prepare your order (e.g. flavors, box preference, allergies).
+        </p>
         <textarea
-          placeholder="Any special requests..."
+          placeholder="Add a note for your order..."
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none"
         />
+        {!notes.trim() && (
+          <p className="text-red-500 text-sm mt-1">A note is required to place your order.</p>
+        )}
       </section>
 
       {/* Tip */}
@@ -670,7 +769,19 @@ export default function CheckoutPage() {
       {/* Payment */}
       <section>
         <h2 className="text-lg font-semibold mb-3">Payment</h2>
-        {cart.orderType === 'delivery' && !cart.deliveryAddress ? (
+        {!hasPhone ? (
+          <div className="bg-amber-50 text-amber-700 p-4 rounded-lg text-sm font-medium">
+            Please provide your phone number above before proceeding to payment.
+          </div>
+        ) : scheduleIncomplete ? (
+          <div className="bg-amber-50 text-amber-700 p-4 rounded-lg text-sm font-medium">
+            Please select a {cart.orderType === 'pickup' ? 'pickup' : 'delivery'} date and time before proceeding to payment.
+          </div>
+        ) : !hasNote ? (
+          <div className="bg-amber-50 text-amber-700 p-4 rounded-lg text-sm font-medium">
+            Please add an order note above before proceeding to payment.
+          </div>
+        ) : cart.orderType === 'delivery' && !cart.deliveryAddress ? (
           <div className="bg-amber-50 text-amber-700 p-4 rounded-lg text-sm font-medium">
             Please enter your delivery address and verify it before proceeding to payment.
           </div>

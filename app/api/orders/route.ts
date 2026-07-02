@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
     tip: tipAmount,
     scheduledAt,
     sourceId,
+    phone,
     notes,
     giftCardCode,
     giftCardAmount,
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
     tip: number;
     scheduledAt: string | null;
     sourceId: string;
+    phone?: string;
     notes: string;
     giftCardCode?: string;
     giftCardAmount?: number;
@@ -70,6 +72,22 @@ export async function POST(request: NextRequest) {
 
   if (!items?.length || !sourceId) {
     return NextResponse.json({ error: 'Items and payment source required' }, { status: 400 });
+  }
+
+  // A contact phone number is required so we can reach the customer.
+  const contactPhone = (phone || '').trim();
+  if (!contactPhone) {
+    return NextResponse.json({ error: 'A phone number is required to place your order' }, { status: 400 });
+  }
+
+  // A note is required on every order.
+  if (!notes || !notes.trim()) {
+    return NextResponse.json({ error: 'A note is required to place your order' }, { status: 400 });
+  }
+
+  // Pickup orders must be scheduled for a specific date and time (no ASAP).
+  if (orderType === 'pickup' && !scheduledAt) {
+    return NextResponse.json({ error: 'Please select a pickup date and time' }, { status: 400 });
   }
 
   const service = createServiceClient();
@@ -247,7 +265,16 @@ export async function POST(request: NextRequest) {
       .eq('id', user.id)
       .single();
     const displayName = customerProfile?.full_name || user.user_metadata?.full_name || user.email || 'Online Customer';
-    const customerPhone = customerProfile?.phone || '';
+    // Prefer the saved profile phone; fall back to the one submitted at checkout.
+    const customerPhone = customerProfile?.phone || contactPhone;
+
+    // Persist the checkout phone to the profile if it wasn't saved before.
+    if (!customerProfile?.phone && contactPhone) {
+      await service
+        .from('profiles')
+        .update({ phone: contactPhone, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+    }
 
     let squareOrderId: string | undefined;
     let squareOrderTotal: bigint | undefined;
