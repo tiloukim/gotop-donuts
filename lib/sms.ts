@@ -1,5 +1,5 @@
 import { toE164 } from './phone';
-import { ADMIN_SMS_PHONE } from './constants';
+import { ADMIN_SMS_PHONE, STORE_NAME } from './constants';
 
 // Sends an SMS to the admin (Tilou Kim) when a new order comes in, using the
 // Telnyx Messaging API. Requires TELNYX_API_KEY and a sending number in
@@ -24,7 +24,7 @@ export async function sendNewOrderSms(
     return;
   }
 
-  const text = `New Order #${orderNumber} — ${
+  const text = `${STORE_NAME}: New Order #${orderNumber} — ${
     orderType === 'delivery' ? 'Delivery' : 'Pickup'
   } — $${total.toFixed(2)}`;
 
