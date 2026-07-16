@@ -288,7 +288,12 @@ export default function AdminOrdersPage() {
 
   function startEditPickup(order: EnrichedOrder) {
     const scheduled = order.scheduled_at ? new Date(order.scheduled_at) : new Date()
-    setEditPickupDate(scheduled.toISOString().split('T')[0])
+    // Use local date parts (toISOString() gives the UTC day, which can be off
+    // by one from the local pickup day); toTimeString() below is already local.
+    const y = scheduled.getFullYear()
+    const mo = String(scheduled.getMonth() + 1).padStart(2, '0')
+    const day = String(scheduled.getDate()).padStart(2, '0')
+    setEditPickupDate(`${y}-${mo}-${day}`)
     setEditPickupTime(scheduled.toTimeString().slice(0, 5))
     setEditingPickup(order.id)
   }

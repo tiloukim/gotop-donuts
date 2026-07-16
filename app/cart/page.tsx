@@ -56,7 +56,9 @@ export default function CartPage() {
     setScheduleDate(firstOpen);
     setScheduleTime(slots[0].value);
     const [h, m] = slots[0].value.split(':');
-    const dt = new Date(firstOpen);
+    // Parse as local midnight (bare "YYYY-MM-DD" parses as UTC, which shifts
+    // the date back a day in negative-offset timezones).
+    const dt = new Date(firstOpen + 'T00:00:00');
     dt.setHours(Number(h), Number(m), 0, 0);
     cart.setScheduledAt(dt.toISOString());
   }, [storeHours, scheduleMode, scheduleDate, cart.orderType]);
@@ -291,7 +293,9 @@ export default function CartPage() {
                   setScheduleTime(e.target.value);
                   if (scheduleDate && e.target.value) {
                     const [h, m] = e.target.value.split(':');
-                    const dt = new Date(scheduleDate);
+                    // Parse as local midnight — bare "YYYY-MM-DD" parses as UTC
+                    // and shifts back a day in negative-offset timezones.
+                    const dt = new Date(scheduleDate + 'T00:00:00');
                     dt.setHours(Number(h), Number(m), 0, 0);
                     cart.setScheduledAt(dt.toISOString());
                   }
