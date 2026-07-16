@@ -181,7 +181,9 @@ export default function CheckoutPage() {
   function getScheduledAt(): string | null {
     if (scheduleMode !== 'scheduled' || !scheduleDate || !scheduleTime) return null;
     const [h, m] = scheduleTime.split(':');
-    const dt = new Date(scheduleDate);
+    // Parse as local midnight — bare "YYYY-MM-DD" parses as UTC and shifts
+    // back a day in negative-offset timezones.
+    const dt = new Date(scheduleDate + 'T00:00:00');
     dt.setHours(Number(h), Number(m), 0, 0);
     return dt.toISOString();
   }
