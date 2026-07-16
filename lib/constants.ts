@@ -4,6 +4,9 @@ export const STORE_PHONE = '(903) 345-5598';
 export const STORE_EMAIL = 'hello@gotopdonuts.com';
 export const ADMIN_EMAIL = 'tiloukim@gmail.com';
 export const NOTIFICATION_EMAIL = 'topdonuts903@gmail.com';
+// Admin (Tilou Kim) who receives an SMS alert for every new order.
+// Overridable via the ADMIN_SMS_PHONE env var; falls back to this number.
+export const ADMIN_SMS_PHONE = '9033455599';
 
 // Store coordinates (Tyler, TX)
 export const STORE_LAT = 32.2711;

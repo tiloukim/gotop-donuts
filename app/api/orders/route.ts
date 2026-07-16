@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { getSquareClient } from '@/lib/square';
 import { sendOrderNotification } from '@/lib/email';
 import { sendNewOrderPush } from '@/lib/push';
+import { sendNewOrderSms } from '@/lib/sms';
 import { TX_SALES_TAX, POINTS_PER_DOLLAR, REDEEM_POINTS, REDEEM_DISCOUNT, SERVICE_FEE_RATE, SERVICE_FEE_FIXED } from '@/lib/constants';
 import { checkShopOpenForASAP } from '@/lib/store-hours';
 import { NextRequest, NextResponse } from 'next/server';
@@ -530,6 +531,7 @@ export async function POST(request: NextRequest) {
     const orderWithItems = { ...order, order_items: orderItems.map((item, i) => ({ ...item, id: `temp-${i}`, order_id: order.id })) };
     sendOrderNotification(orderWithItems).catch(console.error);
     sendNewOrderPush(order.order_number, orderType, actualTotal).catch(console.error);
+    sendNewOrderSms(order.order_number, orderType, actualTotal).catch(console.error);
 
     return NextResponse.json({ order });
   } catch (err: unknown) {
